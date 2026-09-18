@@ -1,0 +1,17 @@
+{
+  "name": "cup-of-tea",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "firebase": "^11.4.0"
+  },
+  "devDependencies": {
+    "vite": "^6.2.0"
+  }
+}
