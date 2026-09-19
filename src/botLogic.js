@@ -1,21 +1,21 @@
-// Bot AI Logic for Cup of Tea (Victorian Parlor AI Players)
+// Bot AI Logic for Cup of Tea: "Siyanür Küpü" (Sugar & Cyanide)
 import { DB } from './firebaseConfig.js';
-import { submitPhase1Decision, respondToSwap, setPhase2Ready } from './gameLogic.js';
+import { submitDropAction, submitVerdict } from './gameLogic.js';
+import { auditorAgent } from './telemetryAuditor.js';
 
 const BOT_NAMES = [
-  'Bot Watson',
   'Bot Moriarty',
+  'Bot Watson',
   'Bot Irene',
   'Bot Lestrade',
-  'Bot Hudson',
   'Bot Mycroft',
+  'Bot Adler',
+  'Bot Hudson',
   'Bot Mary',
   'Bot Wiggins',
-  'Bot Hopkins',
-  'Bot Gregson'
+  'Bot Hopkins'
 ];
 
-// Set to keep track of scheduled bot operations to prevent duplicate executions
 const scheduledOperations = new Set();
 
 export async function addBot(roomCode) {
@@ -35,7 +35,6 @@ export async function addBot(roomCode) {
 
   const existingNames = new Set(existingPlayers.map(p => (p.name || '').trim().toLowerCase()));
 
-  // Find an available bot name
   let candidateName = BOT_NAMES.find(name => !existingNames.has(name.toLowerCase()));
   if (!candidateName) {
     candidateName = `Bot ${Math.floor(100 + Math.random() * 900)}`;
@@ -48,22 +47,22 @@ export async function addBot(roomCode) {
     isHost: false,
     isBot: true,
     alive: true,
-    cupPoisoned: false,
-    skips: 0,
-    poison: 1,
+    points: 0,
     pill: 1,
+    cyanide: 1,
     ready: false,
-    lastDrink: null,
-    decision: null
+    dropAction: null,
+    verdict: null,
+    roundSugars: { sweet: 0, cyanide: 0, total: 0 },
+    autoPillUsed: false,
+    lastDrank: null,
+    pointsEarnedThisRound: 0
   };
 
   await DB.set(`rooms/${cleanCode}/players/${botId}`, botPlayer);
   return { botId, botName: candidateName };
 }
 
-/**
- * Main coordinator run by room host client whenever room state updates.
- */
 export function runBotLifecycle(roomCode, room) {
   if (!room || !room.players) return;
 
@@ -72,26 +71,61 @@ export function runBotLifecycle(roomCode, room) {
 
   if (room.status === 'PHASE_1') {
     for (const bot of bots) {
-      if (!bot.ready || !bot.decision) {
+      if (!bot.ready || !bot.dropAction) {
         scheduleBotPhase1(roomCode, bot, room.round);
       }
     }
   } else if (room.status === 'PHASE_2') {
     for (const bot of bots) {
-      // 1. Check if bot has pending swap offers to respond to
-      const swaps = room.swaps || {};
-      for (const swap of Object.values(swaps)) {
-        if (swap.to === bot.id && swap.status === 'PENDING') {
-          scheduleBotSwapResponse(roomCode, bot, swap.id);
-        }
-      }
-
-      // 2. Schedule Phase 2 ready
-      if (!bot.ready) {
-        scheduleBotPhase2Ready(roomCode, bot, room.round);
+      if (!bot.ready || !bot.verdict) {
+        scheduleBotPhase2(roomCode, bot, room.round);
       }
     }
   }
+}
+
+function getBotPhase1UxCritique(botName, targetName, actionChoice) {
+  const critiques = [
+    {
+      critique: `Faz 1 hedef fincan seçiminde rakip isimleri ve puanları net. Ancak mobilde fincan kartları daha geniş basma alanı (padding) alabilir.`,
+      recommendation: `Hedef fincan kartlarının dokunmatik alanını ve basılma (active) görsel efektini güçlendirin.`
+    },
+    {
+      critique: `Şeker atma vs Siyanür atma butonlarının seçilme durumu net. Kalan siyanür adedi (1) daha belirgin parlak bir sayaç kutusuyla ayrışabilir.`,
+      recommendation: `Siyanür butonundaki kalan stok adedini koyu kırmızı 3D sayaç rozeti ile vurgulayın.`
+    },
+    {
+      critique: `${targetName}'ın fincanına ${actionChoice.type === 'CYANIDE' ? 'siyanür' : 'şeker'} bırakıldı. Üst bardaki 'X/Y Hazır' sayacı diğer oyuncuların durumunu anlık gösteriyor.`,
+      recommendation: `Kararını 10 saniyeden uzun süre vermeyen oyuncu fincanı hafif nabız gibi parlayarak masayı uyarabilir.`
+    },
+    {
+      critique: `Fincan hedefleme ızgarasında fincanların Victorian piksel tasarımı kusursuz. Sayısal emblem yerine mücevher parlaklığı tercih edilmesi retro uyumu artırmış.`,
+      recommendation: `Seçili fincan etrafında altın yaldızlı parıltı efekti eklenebilir.`
+    }
+  ];
+  return critiques[Math.floor(Math.random() * critiques.length)];
+}
+
+function getBotPhase2UxCritique(botName, verdict, totalSugars) {
+  const critiques = [
+    {
+      critique: `DRINK / DUMP / SWAP CUP 3-kart aksiyon destesi retro piksel estetiğine tam oturmuş. Seçilen eylemin altındaki özet bilgi kutusu oyuncu kafa karışıklığını önlüyor.`,
+      recommendation: `DUMP seçildiğinde '0 Puan alırsın' uyarısını sarı yerine hafif kırmızımsı bir çerçeveyle hissettirin.`
+    },
+    {
+      critique: `Kurucu oyuncunun 'KARAR VER' butonu ile 'MASAYI AÇIKLA' host kontrolü arasındaki ayrım çok kritik. Kurucunun önce kendi fincanına karar vermesi gerektiği net anlaşılmalı.`,
+      recommendation: `Kurucu kendi fincanına karar vermeden 'MASAYI AÇIKLA' butonuna bastığında onay modalı çıkartın.`
+    },
+    {
+      critique: `Karar kilitlendikten sonra beliren yeşil 'KARARIN KİLİTLENDİ' banner'ı güven veriyor. Butonun kilitli hali ile açık hali arasındaki geçiş çok net.`,
+      recommendation: `Kilitli banner içerisine 16-bit retro asma kilit piktogramı yerleştirilebilir.`
+    },
+    {
+      critique: `Fincan takası (SWAP) sekmesinde hedef rakipler hap butonları (pill buttons) olarak listeleniyor. Seçilen rakibin fincan rengi anında küçük bir simgeyle önizlenmeli.`,
+      recommendation: `SWAP hedef listesinde her rakibin fincan rengini isim yanına rozet olarak ekleyin.`
+    }
+  ];
+  return critiques[Math.floor(Math.random() * critiques.length)];
 }
 
 function scheduleBotPhase1(roomCode, bot, round) {
@@ -99,8 +133,7 @@ function scheduleBotPhase1(roomCode, bot, round) {
   if (scheduledOperations.has(opKey)) return;
   scheduledOperations.add(opKey);
 
-  // Human-like natural delay: 1000ms - 2500ms
-  const delayMs = 1000 + Math.floor(Math.random() * 1500);
+  const delayMs = 800 + Math.floor(Math.random() * 1200);
 
   setTimeout(async () => {
     try {
@@ -110,49 +143,44 @@ function scheduleBotPhase1(roomCode, bot, round) {
       const currentBot = room.players ? room.players[bot.id] : null;
       if (!currentBot || !currentBot.alive || currentBot.ready) return;
 
-      // 1. DRINK CHOICE
-      let drinkChoice = true;
-      const skipsUsed = currentBot.skips || 0;
-
-      if (skipsUsed >= 2) {
-        // Must drink! No skips remaining
-        drinkChoice = true;
-      } else if (skipsUsed === 1) {
-        // 1 skip left: 75% drink, 25% skip
-        drinkChoice = Math.random() < 0.75;
-      } else {
-        // 0 skips used: 65% drink, 35% skip
-        drinkChoice = Math.random() < 0.65;
-      }
-
-      // 2. ACTION CHOICE (POISON, SWAP, PASS)
       const aliveOpponents = Object.values(room.players).filter(p => p.alive && p.id !== bot.id);
-      let actionChoice = { type: 'PASS' };
+      if (aliveOpponents.length === 0) return;
 
-      if (currentBot.poison > 0 && aliveOpponents.length > 0) {
-        const roll = Math.random();
-        if (roll < 0.75) {
-          // Poison a random alive opponent
-          const target = aliveOpponents[Math.floor(Math.random() * aliveOpponents.length)];
-          actionChoice = { type: 'POISON', target: target.id };
-        } else if (roll < 0.85) {
-          // Bluff! Poison own cup as Trojan horse
-          actionChoice = { type: 'POISON', target: bot.id };
+      const randomTarget = aliveOpponents[Math.floor(Math.random() * aliveOpponents.length)];
+      const leader = aliveOpponents.find(o => (o.points || 0) >= 3);
+      let actionChoice = { type: 'SWEET', target: randomTarget.id };
+      let motive = '';
+
+      if ((currentBot.cyanide || 0) > 0) {
+        if (leader && Math.random() < 0.75) {
+          actionChoice = { type: 'CYANIDE', target: leader.id };
+          motive = `Lider ${leader.name} (${leader.points} Puan) hedeflendi, suikast ödülü aranıyor.`;
+        } else if (Math.random() < 0.45) {
+          actionChoice = { type: 'CYANIDE', target: randomTarget.id };
+          motive = `Şüpheli rakip ${randomTarget.name}'ın fincanına siyanür bırakıldı.`;
         } else {
-          // Save poison
-          actionChoice = { type: 'PASS' };
+          actionChoice = { type: 'SWEET', target: randomTarget.id };
+          motive = `${randomTarget.name}'a ikram yapıldı, amaç +1 siyanür stoğu doldurmak.`;
         }
-      } else if (!room.isDuel && aliveOpponents.length > 0) {
-        // No poison available, or save poison: consider swap
-        if (Math.random() < 0.50) {
-          const target = aliveOpponents[Math.floor(Math.random() * aliveOpponents.length)];
-          actionChoice = { type: 'SWAP', target: target.id };
-        } else {
-          actionChoice = { type: 'PASS' };
-        }
+      } else {
+        actionChoice = { type: 'SWEET', target: randomTarget.id };
+        motive = `Siyanür stoğu boş (0), ${randomTarget.name}'a tatlı ikram ederek +1 siyanür kazanılacak.`;
       }
 
-      await submitPhase1Decision(roomCode, bot.id, drinkChoice, actionChoice);
+      const targetPlayer = room.players[actionChoice.target];
+      const targetName = targetPlayer ? targetPlayer.name : 'Bilinmeyen';
+      const uxFeedback = getBotPhase1UxCritique(bot.name, targetName, actionChoice);
+      auditorAgent.recordBotReasoning(
+        bot.name,
+        'PHASE_1',
+        `${actionChoice.type === 'CYANIDE' ? '☠️ Siyanür' : '🍬 Şeker'} ➔ ${targetName}`,
+        motive,
+        'HIGH',
+        uxFeedback.critique,
+        uxFeedback.recommendation
+      );
+
+      await submitDropAction(roomCode, bot.id, actionChoice);
     } catch (err) {
       console.warn(`[Bot AI] Phase 1 error for ${bot.name}:`, err);
     } finally {
@@ -161,38 +189,12 @@ function scheduleBotPhase1(roomCode, bot, round) {
   }, delayMs);
 }
 
-function scheduleBotSwapResponse(roomCode, bot, swapId) {
-  const opKey = `swap_${roomCode}_${bot.id}_${swapId}`;
+function scheduleBotPhase2(roomCode, bot, round) {
+  const opKey = `p2_${roomCode}_${bot.id}_r${round}`;
   if (scheduledOperations.has(opKey)) return;
   scheduledOperations.add(opKey);
 
-  const delayMs = 800 + Math.floor(Math.random() * 1200);
-
-  setTimeout(async () => {
-    try {
-      const room = await DB.get(`rooms/${roomCode}`);
-      if (!room || room.status !== 'PHASE_2') return;
-
-      const swap = room.swaps ? room.swaps[swapId] : null;
-      if (!swap || swap.status !== 'PENDING') return;
-
-      // Bot evaluates swap: 60% chance accept, 40% reject
-      const accept = Math.random() < 0.60;
-      await respondToSwap(roomCode, swapId, accept);
-    } catch (err) {
-      console.warn(`[Bot AI] Swap response error for ${bot.name}:`, err);
-    } finally {
-      scheduledOperations.delete(opKey);
-    }
-  }, delayMs);
-}
-
-function scheduleBotPhase2Ready(roomCode, bot, round) {
-  const opKey = `p2_ready_${roomCode}_${bot.id}_r${round}`;
-  if (scheduledOperations.has(opKey)) return;
-  scheduledOperations.add(opKey);
-
-  const delayMs = 1500 + Math.floor(Math.random() * 1500);
+  const delayMs = 1000 + Math.floor(Math.random() * 1400);
 
   setTimeout(async () => {
     try {
@@ -202,19 +204,70 @@ function scheduleBotPhase2Ready(roomCode, bot, round) {
       const currentBot = room.players ? room.players[bot.id] : null;
       if (!currentBot || !currentBot.alive || currentBot.ready) return;
 
-      // Make sure all pending swap offers targeting this bot have been decided
-      const swaps = room.swaps || {};
-      for (const swap of Object.values(swaps)) {
-        if (swap.to === bot.id && swap.status === 'PENDING') {
-          await respondToSwap(roomCode, swap.id, Math.random() < 0.60);
+      const totalSugars = currentBot.roundSugars?.total || 0;
+      const aliveOpponents = Object.values(room.players).filter(p => p.alive && p.id !== bot.id);
+      let verdict = 'DRINK';
+      let motive = '';
+
+      if ((currentBot.swapsLeft ?? 1) > 0 && totalSugars >= 2 && (currentBot.pill || 0) === 0 && aliveOpponents.length > 0) {
+        if (Math.random() < 0.45) {
+          const sortedTargets = [...aliveOpponents].sort((a, b) => (b.points || 0) - (a.points || 0));
+          const swapTarget = sortedTargets[0];
+          verdict = `SWAP:${swapTarget.id}`;
+          motive = `Fincanda ${totalSugars} şeker var ve panzehir yok! Riskli fincan lider ${swapTarget.name} ile takas edildi.`;
+          const uxFeedback = getBotPhase2UxCritique(bot.name, verdict, totalSugars);
+          auditorAgent.recordBotReasoning(
+            bot.name,
+            'PHASE_2',
+            `🔄 TAKAS ➔ ${swapTarget.name}`,
+            motive,
+            'HIGH',
+            uxFeedback.critique,
+            uxFeedback.recommendation
+          );
+          await submitVerdict(roomCode, bot.id, verdict);
+          return;
         }
       }
 
-      await setPhase2Ready(roomCode, bot.id);
+      if (totalSugars === 0) {
+        if ((currentBot.cyanide || 0) === 0) {
+          verdict = 'DRINK';
+          motive = 'Fincan boş ve güvenli (0 şeker), içildi.';
+        } else {
+          verdict = Math.random() < 0.5 ? 'DRINK' : 'DUMP';
+          motive = `Fincan boş (0 şeker), blöf ve şüphe gereği ${verdict} seçildi.`;
+        }
+      } else if ((currentBot.pill || 0) > 0) {
+        verdict = Math.random() < 0.8 ? 'DRINK' : 'DUMP';
+        motive = `Panzehir (1 Can) mevcut, agresif puan kazanma amacıyla %80 ihtimalle ${verdict} seçildi.`;
+      } else if ((currentBot.points || 0) + totalSugars >= (room.targetPoints || 8)) {
+        verdict = Math.random() < 0.7 ? 'DRINK' : 'DUMP';
+        motive = `Şampiyonluk eşiği (%70 kazanma atağı), ${verdict} seçildi.`;
+      } else if (totalSugars === 1) {
+        verdict = Math.random() < 0.55 ? 'DRINK' : 'DUMP';
+        motive = `Tek şekerli fincan, dengeli risk tercihi ile ${verdict} seçildi.`;
+      } else {
+        verdict = Math.random() < 0.35 ? 'DRINK' : 'DUMP';
+        motive = `${totalSugars} şekerli yüksek siyanür riski! Panzehir olmadığı için temkinli davranıldı (${verdict}).`;
+      }
+
+      const uxFeedback = getBotPhase2UxCritique(bot.name, verdict, totalSugars);
+      auditorAgent.recordBotReasoning(
+        bot.name,
+        'PHASE_2',
+        verdict,
+        motive,
+        'HIGH',
+        uxFeedback.critique,
+        uxFeedback.recommendation
+      );
+      await submitVerdict(roomCode, bot.id, verdict);
     } catch (err) {
-      console.warn(`[Bot AI] Phase 2 ready error for ${bot.name}:`, err);
+      console.warn(`[Bot AI] Phase 2 error for ${bot.name}:`, err);
     } finally {
       scheduledOperations.delete(opKey);
     }
   }, delayMs);
 }
+

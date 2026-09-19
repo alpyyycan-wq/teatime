@@ -475,9 +475,8 @@ function renderTimelineView(logs, roundFilter, room) {
 
 function renderRoundTimeline(roundNum, logs, room) {
   // Break down events into Phase 1, Phase 2, Phase 3, and End
-  const phase1Events = logs.filter(l => l.type === 'POISON' || l.type === 'SWAP_OFFER');
-  const phase2Events = logs.filter(l => l.type.startsWith('SWAP_') && l.type !== 'SWAP_OFFER');
-  const phase3Events = logs.filter(l => l.type === 'DRINK_CLEAN' || l.type === 'DRINK_POISONED' || l.type === 'SKIP' || l.type === 'POISONED_PILL');
+  const phase1Events = logs.filter(l => l.type === 'DROP_SWEET' || l.type === 'DROP_CYANIDE' || l.type === 'POISON' || l.type === 'STEALTH_SWAP');
+  const phase3Events = logs.filter(l => l.type === 'DRINK_CLEAN' || l.type === 'DUMP' || l.type === 'SKIP' || l.type === 'POISONED_PILL' || l.type === 'DRINK_POISONED');
   const endEvents = logs.filter(l => l.type === 'DEATH' || l.type === 'WINNER' || l.type === 'MUTUAL_DEATH');
 
   return `
@@ -488,37 +487,24 @@ function renderRoundTimeline(roundNum, logs, room) {
       </div>
 
       <div class="round-card-body">
-        <!-- Faz 1: Gizli Kararlar & Zehirleme -->
+        <!-- 1. Adım: Şeker Atma (Tatlı Şeker & Siyanür Küpleri) -->
         <div class="phase-block">
           <div class="phase-heading">
-            <span class="phase-icon">🧪</span>
-            <span class="phase-title">1. Faz: Gizli Kararlar & Zehirleme / Hamle</span>
+            <span class="phase-icon">🍬</span>
+            <span class="phase-title">1. Adım: Gizli Şeker Atma (Tatlı Şeker & Siyanür)</span>
           </div>
           <div class="phase-events">
             ${phase1Events.length > 0 ? phase1Events.map(e => formatEventHtml(e)).join('') : `
-              <div class="empty-event-text">Bu fazda doğrudan zehir veya takas teklifi kaydı yok (oyuncular pas geçmiş olabilir).</div>
+              <div class="empty-event-text">Bu raund şeker atma kaydı bulunmuyor.</div>
             `}
           </div>
         </div>
 
-        <!-- Faz 2: Tartışma & Fincan Takasları -->
+        <!-- 2. & 3. Adım: İçme, Dökme & Puan Çözümlemesi -->
         <div class="phase-block">
           <div class="phase-heading">
-            <span class="phase-icon">🤝</span>
-            <span class="phase-title">2. Faz: Tartışma & Fincan Takası Sonuçları</span>
-          </div>
-          <div class="phase-events">
-            ${phase2Events.length > 0 ? phase2Events.map(e => formatEventHtml(e)).join('') : `
-              <div class="empty-event-text">Bu raund fincan takası gerçekleşmedi.</div>
-            `}
-          </div>
-        </div>
-
-        <!-- Faz 3: İçme & Hayatta Kalma -->
-        <div class="phase-block">
-          <div class="phase-heading">
-            <span class="phase-icon">🍵</span>
-            <span class="phase-title">3. Faz: İçme, Pas & Çözümleme</span>
+            <span class="phase-icon">☕</span>
+            <span class="phase-title">2. & 3. Adım: Masada Karar & Çözümleme (İçme / Dökme)</span>
           </div>
           <div class="phase-events">
             ${phase3Events.length > 0 ? phase3Events.map(e => formatEventHtml(e)).join('') : `
@@ -531,7 +517,7 @@ function renderRoundTimeline(roundNum, logs, room) {
         ${endEvents.length > 0 ? `
           <div class="phase-block end-phase-block">
             <div class="phase-heading">
-              <span class="phase-icon">⚖️</span>
+              <span class="phase-icon">👑</span>
               <span class="phase-title">Raund Sonu & Elenme / Şampiyonluk</span>
             </div>
             <div class="phase-events">
@@ -550,70 +536,56 @@ function formatEventHtml(ev) {
   let badgeClass = 'badge-default';
 
   switch (ev.type) {
-    case 'POISON':
-      icon = '🧪';
+    case 'DROP_SWEET':
+      icon = '🍬';
+      badgeClass = 'badge-clean';
+      desc = `<strong>${escapeHtml(ev.actor)}</strong>, <strong>${escapeHtml(ev.target)}</strong>'ın fincanına <strong>TATLI ŞEKER</strong> attı (+1 Puan potansiyeli).`;
+      break;
+    case 'DROP_CYANIDE':
+      icon = '☠️';
       badgeClass = 'badge-poison';
-      desc = `<strong>${escapeHtml(ev.actor)}</strong>, <strong>${escapeHtml(ev.target)}</strong>'ın fincanına gizlice ZEHİR kattı!`;
-      break;
-    case 'SWAP_OFFER':
-      icon = '🔄';
-      badgeClass = 'badge-swap';
-      desc = `<strong>${escapeHtml(ev.actor)}</strong>, <strong>${escapeHtml(ev.target)}</strong>'a fincan takası teklif etti.`;
-      break;
-    case 'SWAP_ACCEPTED':
-      icon = '🤝';
-      badgeClass = 'badge-swap-accepted';
-      desc = `<strong>${escapeHtml(ev.to)}</strong>, <strong>${escapeHtml(ev.from)}</strong>'in takas teklifini <strong>KABUL ETTİ</strong> (fincanlar yer değiştirdi).`;
-      break;
-    case 'SWAP_REJECTED':
-      icon = '❌';
-      badgeClass = 'badge-swap-rejected';
-      desc = `<strong>${escapeHtml(ev.to)}</strong>, <strong>${escapeHtml(ev.from)}</strong>'in takas teklifini <strong>REDDETTİ</strong>.`;
-      break;
-    case 'SWAP_CANCELLED':
-      icon = '⚠️';
-      badgeClass = 'badge-swap-cancelled';
-      desc = `<strong>${escapeHtml(ev.from)}</strong> ile <strong>${escapeHtml(ev.to)}</strong> arasındaki takas <strong>İPTAL EDİLDİ</strong> (çifte takas çakışması).`;
-      break;
-    case 'SWAP_EXPIRED':
-      icon = '⌛';
-      badgeClass = 'badge-swap-expired';
-      desc = `<strong>${escapeHtml(ev.from)}</strong>'in <strong>${escapeHtml(ev.to)}</strong>'a teklifi yanıtsız kalarak zaman aşımına uğradı.`;
+      desc = `<strong>${escapeHtml(ev.actor)}</strong>, <strong>${escapeHtml(ev.target)}</strong>'ın fincanına gizlice <strong>SİYANÜR KÜPÜ</strong> attı!`;
       break;
     case 'DRINK_CLEAN':
       icon = '☕';
       badgeClass = 'badge-clean';
-      desc = `<strong>${escapeHtml(ev.actor)}</strong> çayını İÇTİ (Temiz çaydı, hayatta kaldı ve +1 zehir kazandı).`;
+      desc = `<strong>${escapeHtml(ev.actor)}</strong> çayını İÇTİ (Temiz çay! <strong>+${ev.pointsEarned || 0} Şeker Puanı</strong> kazandı, Toplam: <strong>${ev.totalPoints || 0}/5</strong>${ev.cyanideReloaded ? ' ve +1 taze Siyanür yüklendi!' : ''}).`;
       break;
-    case 'DRINK_POISONED':
-      icon = '☠️';
-      badgeClass = 'badge-poisoned-drink';
-      desc = `<strong>${escapeHtml(ev.actor)}</strong> çayını İÇTİ (<strong>ÇAY ZEHİRLİYDİ!</strong>)`;
-      break;
+    case 'DUMP':
     case 'SKIP':
-      icon = '🛑';
+      icon = '🫗';
       badgeClass = 'badge-skip';
-      desc = `<strong>${escapeHtml(ev.actor)}</strong> çayını PAS GEÇTİ (İçmedi, fincandaki durum korundu).`;
+      desc = `<strong>${escapeHtml(ev.actor)}</strong> çayını DÖKTÜ (Risk almadı, 0 puan).`;
       break;
     case 'POISONED_PILL':
       icon = '💊';
       badgeClass = 'badge-pill';
-      desc = `<strong>${escapeHtml(ev.actor)}</strong> zehirlendi ama panzehiri (Pill) otomatik devreye girerek HAYATINI KURTARDI (+1 Zehir kazandı)!`;
+      desc = `<strong>${escapeHtml(ev.actor)}</strong> siyanürlü çayı içti! Panzehiri devreye girdi ve HAYATINI KURTARDI!`;
       break;
     case 'DEATH':
       icon = '💀';
       badgeClass = 'badge-death';
-      desc = `<strong>${escapeHtml(ev.actor)}</strong> zehirli çay sebebiyle <strong>ELENDİ VE ÖLDÜ!</strong>`;
+      desc = `<strong>${escapeHtml(ev.actor)}</strong> siyanürlü çayı içti ve <strong>ELENDİ!</strong>`;
       break;
     case 'WINNER':
       icon = '👑';
       badgeClass = 'badge-winner';
-      desc = `ŞAMPİYON: <strong>${escapeHtml(ev.winner)}</strong> (Tüm rakiplerini alt etti)!`;
+      desc = `🏆 ŞAMPİYON: <strong>${escapeHtml(ev.winner)}</strong> ${ev.reason === 'POINTS' ? `(${ev.points} Şeker Puanına ulaştı!)` : '(Hayatta kalan son asil!)'}`;
       break;
     case 'MUTUAL_DEATH':
       icon = '🍻';
       badgeClass = 'badge-death';
       desc = `ÇİFTE CİNAYET! Masadaki herkes aynı anda zehirlendi!`;
+      break;
+    case 'POISON':
+      icon = '🧪';
+      badgeClass = 'badge-poison';
+      desc = `<strong>${escapeHtml(ev.actor)}</strong>, <strong>${escapeHtml(ev.target)}</strong>'ın fincanına gizlice ZEHİR kattı!`;
+      break;
+    case 'STEALTH_SWAP':
+      icon = '🔄';
+      badgeClass = 'badge-swap';
+      desc = `<strong>${escapeHtml(ev.actor)}</strong>, <strong>${escapeHtml(ev.target)}</strong> ile fincanını GİZLİCE DEĞİŞTİRDİ!`;
       break;
     default:
       desc = JSON.stringify(ev);

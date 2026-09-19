@@ -1,5 +1,6 @@
-// Core Game Engine for Cup of Tea (Timer-free, party-paced, zero Firebase path conflicts)
+// Core Game Engine for Cup of Tea: "Siyanür Küpü" (Sugar & Cyanide)
 import { DB } from './firebaseConfig.js';
+import { auditorAgent } from './telemetryAuditor.js';
 
 export function generateRoomCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -19,23 +20,30 @@ export async function createRoom(hostName) {
     hostId: hostId,
     status: 'LOBBY',
     round: 1,
+    targetPoints: 8,
     players: {
       [hostId]: {
         id: hostId,
         name: hostName,
         isHost: true,
+        isBot: false,
         alive: true,
-        cupPoisoned: false,
-        skips: 0,
-        poison: 1,
+        points: 0,
         pill: 1,
+        cyanide: 1,
+        swapsLeft: 1,
         ready: false,
-        lastDrink: null,
-        decision: null
+        dropAction: null,
+        verdict: null,
+        roundSugars: { sweet: 0, cyanide: 0, total: 0 },
+        autoPillUsed: false,
+        lastDrank: null,
+        pointsEarnedThisRound: 0
       }
     },
-    swaps: {},
-    roundLogs: []
+    roundLogs: [],
+    detailedLogs: [],
+    winner: null
   };
 
   await DB.set(`rooms/${roomCode}`, initialRoom);
@@ -53,7 +61,6 @@ export async function joinRoom(roomCode, playerName) {
     throw new Error("Oyun çoktan başlamış!");
   }
 
-  // Prevent duplicate usernames!
   const cleanName = playerName.trim();
   const existingNames = Object.values(room.players || {}).map(p => (p.name || '').trim().toLowerCase());
   if (existingNames.includes(cleanName.toLowerCase())) {
@@ -65,14 +72,19 @@ export async function joinRoom(roomCode, playerName) {
     id: playerId,
     name: cleanName,
     isHost: false,
+    isBot: false,
     alive: true,
-    cupPoisoned: false,
-    skips: 0,
-    poison: 1,
+    points: 0,
     pill: 1,
+    cyanide: 1,
+    swapsLeft: 1,
     ready: false,
-    lastDrink: null,
-    decision: null
+    dropAction: null,
+    verdict: null,
+    roundSugars: { sweet: 0, cyanide: 0, total: 0 },
+    autoPillUsed: false,
+    lastDrank: null,
+    pointsEarnedThisRound: 0
   };
 
   await DB.set(`rooms/${cleanCode}/players/${playerId}`, playerObj);
@@ -95,42 +107,46 @@ export async function startGame(roomCode) {
   const players = JSON.parse(JSON.stringify(room.players));
   for (const pid of playerIds) {
     players[pid].alive = true;
-    players[pid].cupPoisoned = false;
-    players[pid].skips = 0;
-    players[pid].poison = 1;
+    players[pid].points = 0;
     players[pid].pill = 1;
+    players[pid].cyanide = 1;
+    players[pid].swapsLeft = 1;
     players[pid].ready = false;
-    players[pid].decision = null;
-    players[pid].lastDrink = null;
+    players[pid].dropAction = null;
+    players[pid].verdict = null;
+    players[pid].roundSugars = { sweet: 0, cyanide: 0, total: 0 };
     players[pid].autoPillUsed = false;
+    players[pid].lastDrank = null;
+    players[pid].pointsEarnedThisRound = 0;
+    players[pid].killsThisRound = 0;
   }
 
   await DB.update(`rooms/${roomCode}`, {
     status: 'PHASE_1',
     round: 1,
-    swaps: {},
     roundLogs: [],
     detailedLogs: [],
-    isDuel: false,
-    players: players
+    winner: null,
+    players: players,
+    currentModifier: null,
+    lastPoisonEvent: null
   });
+
+  auditorAgent.init(roomCode);
+  auditorAgent.setPhase('PHASE_1', 1);
 }
 
-export async function checkPhase1Completion(roomCode, room) {
-  if (!room || room.status !== 'PHASE_1') return;
-  const alivePlayers = Object.values(room.players || {}).filter(p => p.alive);
-  const allReady = alivePlayers.length > 0 && alivePlayers.every(p => p.ready && p.decision);
-  if (allReady) {
-    await advanceToPhase2(roomCode, room);
+// -------------------------------------------------------------------
+// 1. ADIM: ŞEKER ATMA (GİZLİ ENTRİKA)
+// -------------------------------------------------------------------
+
+export async function submitDropAction(roomCode, playerId, actionChoice) {
+  if (actionChoice.target === playerId) {
+    throw new Error("Kendi fincanına şeker atamazsın! Başka bir oyuncunun fincanını seçmelisin.");
   }
-}
 
-export async function submitPhase1Decision(roomCode, playerId, drinkChoice, actionChoice) {
   await DB.update(`rooms/${roomCode}/players/${playerId}`, {
-    decision: {
-      drink: drinkChoice,
-      action: actionChoice
-    },
+    dropAction: actionChoice,
     ready: true
   });
 
@@ -140,81 +156,112 @@ export async function submitPhase1Decision(roomCode, playerId, drinkChoice, acti
   }
 }
 
+export async function checkPhase1Completion(roomCode, room) {
+  if (!room || room.status !== 'PHASE_1') return;
+  const alivePlayers = Object.values(room.players || {}).filter(p => p.alive);
+  const allReady = alivePlayers.length > 0 && alivePlayers.every(p => p.ready && p.dropAction);
+  if (allReady) {
+    await advanceToPhase2(roomCode, room);
+  }
+}
+
 export async function advanceToPhase2(roomCode, room) {
-  if (room.status !== 'PHASE_1') return;
+  if (!room) {
+    room = await DB.get(`rooms/${roomCode}`);
+  }
+  if (!room || room.status !== 'PHASE_1') return;
+
+  auditorAgent.setPhase('PHASE_2', room.round);
 
   const players = JSON.parse(JSON.stringify(room.players || {}));
-  const swaps = {};
-  const isDuel = Object.values(players).filter(p => p.alive).length === 2;
   const newDetailed = [...(room.detailedLogs || [])];
 
+  // Initialize sugar counters for all alive players
   for (const p of Object.values(players)) {
-    if (!p.alive || !p.decision) continue;
-    
-    const act = p.decision.action;
-    if (act && act.type === 'POISON' && p.poison > 0 && act.target) {
-      if (players[act.target]) {
-        players[act.target].cupPoisoned = true;
-        p.poison -= 1;
+    p.roundSugars = { sweet: 0, cyanide: 0, total: 0 };
+    p.ready = false;
+    p.verdict = null;
+  }
+
+  // Distribute sugars
+  for (const p of Object.values(players)) {
+    if (!p.alive || !p.dropAction) continue;
+    const act = p.dropAction;
+    const target = players[act.target];
+
+    if (!target || !target.alive) continue;
+
+    if (act.type === 'CYANIDE') {
+      if ((p.cyanide || 0) > 0) {
+        target.roundSugars.cyanide += 1;
+        target.roundSugars.total += 1;
+        target.roundSugars.cyanideSources = target.roundSugars.cyanideSources || [];
+        target.roundSugars.cyanideSources.push({ id: p.id, name: p.name });
+        p.cyanide -= 1;
         newDetailed.push({
-          type: 'POISON',
+          type: 'DROP_CYANIDE',
           round: room.round,
           actor: p.name,
           actorId: p.id,
-          target: players[act.target]?.name || '?',
-          targetId: act.target
+          target: target.name,
+          targetId: target.id
+        });
+      } else {
+        target.roundSugars.sweet += 1;
+        target.roundSugars.total += 1;
+        newDetailed.push({
+          type: 'DROP_SWEET',
+          round: room.round,
+          actor: p.name,
+          actorId: p.id,
+          target: target.name,
+          targetId: target.id
         });
       }
-    } else if (act && act.type === 'SWAP' && act.target && !isDuel) {
-      const swapId = `sw_${p.id}_${act.target}`;
-      swaps[swapId] = {
-        id: swapId,
-        from: p.id,
-        fromName: p.name,
-        to: act.target,
-        toName: players[act.target]?.name || '',
-        status: 'PENDING'
-      };
+    } else {
+      // SWEET SUGAR
+      target.roundSugars.sweet += 1;
+      target.roundSugars.total += 1;
+
+      let giftCyanideReloaded = false;
+      // Gifting sweet sugar to an opponent adds +1 Cyanide to your stock!
+      if (target.id !== p.id) {
+        p.cyanide = (p.cyanide || 0) + 1;
+        p.cyanideReloadedByGift = true;
+        giftCyanideReloaded = true;
+      }
+
       newDetailed.push({
-        type: 'SWAP_OFFER',
+        type: 'DROP_SWEET',
         round: room.round,
         actor: p.name,
         actorId: p.id,
-        target: players[act.target]?.name || '?',
-        targetId: act.target
+        target: target.name,
+        targetId: target.id,
+        giftCyanideReloaded
       });
     }
-  }
-
-  for (const pid of Object.keys(players)) {
-    players[pid].ready = false;
   }
 
   await DB.update(`rooms/${roomCode}`, {
     status: 'PHASE_2',
     players: players,
-    swaps: swaps,
     detailedLogs: newDetailed
   });
 }
 
-export async function respondToSwap(roomCode, swapId, accepted) {
-  await DB.update(`rooms/${roomCode}/swaps/${swapId}`, {
-    status: accepted ? 'ACCEPTED' : 'REJECTED'
-  });
-}
+// -------------------------------------------------------------------
+// 2. ADIM: ÇAYLAR MASADA & KARAR (İÇ / DÖK)
+// -------------------------------------------------------------------
 
-export async function checkPhase2Completion(roomCode, room) {
+export async function submitVerdict(roomCode, playerId, verdict) {
+  const room = await DB.get(`rooms/${roomCode}`);
   if (!room || room.status !== 'PHASE_2') return;
-  const alivePlayers = Object.values(room.players || {}).filter(p => p.alive);
-  const allReady = alivePlayers.length > 0 && alivePlayers.every(p => p.ready);
-  if (allReady) {
-    await advanceToPhase3(roomCode, room);
-  }
-}
 
-export async function setPhase2Ready(roomCode, playerId) {
-  await DB.update(`rooms/${roomCode}/players/${playerId}`, { ready: true });
+  await DB.update(`rooms/${roomCode}/players/${playerId}`, {
+    verdict: verdict,
+    ready: true
+  });
 
   const latestRoom = await DB.get(`rooms/${roomCode}`);
   if (latestRoom) {
@@ -222,154 +269,256 @@ export async function setPhase2Ready(roomCode, playerId) {
   }
 }
 
+export async function checkPhase2Completion(roomCode, room) {
+  if (!room || room.status !== 'PHASE_2') return;
+  const alivePlayers = Object.values(room.players || {}).filter(p => p.alive);
+  const allReady = alivePlayers.length > 0 && alivePlayers.every(p => p.ready && p.verdict);
+  if (allReady) {
+    await advanceToPhase3(roomCode, room);
+  }
+}
+
+// -------------------------------------------------------------------
+// 3. ADIM: ÇÖZÜMLEME, PUANLAR, ZEHİR VE ŞAMPİYONLUK
+// -------------------------------------------------------------------
+
 export async function advanceToPhase3(roomCode, room) {
-  if (room.status !== 'PHASE_2') return;
+  if (!room) {
+    room = await DB.get(`rooms/${roomCode}`);
+  }
+  if (!room || room.status !== 'PHASE_2') return;
 
   const players = JSON.parse(JSON.stringify(room.players || {}));
-  const swaps = room.swaps || {};
-  const logs = [];
+  const roundLogs = [];
   const newDetailed = [...(room.detailedLogs || [])];
-  
-  // 1. Resolve swaps silently
-  const swappedPair = new Set();
-  for (const s of Object.values(swaps)) {
-    if (s.status === 'ACCEPTED') {
-      if (!swappedPair.has(s.from) && !swappedPair.has(s.to) && players[s.from] && players[s.to]) {
-        const tempCup = players[s.from].cupPoisoned;
-        players[s.from].cupPoisoned = players[s.to].cupPoisoned;
-        players[s.to].cupPoisoned = tempCup;
-        swappedPair.add(s.from);
-        swappedPair.add(s.to);
-        newDetailed.push({
-          type: 'SWAP_ACCEPTED',
-          round: room.round,
-          from: s.fromName,
-          fromId: s.from,
-          to: s.toName,
-          toId: s.to
+  const targetGoal = room.targetPoints || 8;
+
+  // Pre-initialize per-round flags so subsequent kill awards aren't wiped out
+  for (const p of Object.values(players)) {
+    p.autoPillUsed = false;
+    p.pointsEarnedThisRound = 0;
+    p.pointsLostThisRound = 0;
+    p.killsThisRound = 0;
+    p.poisonHitsThisRound = 0;
+    p.swappedThisRound = null;
+    p.dumpedWasPoisoned = false;
+    p.dumpedSweetCount = 0;
+  }
+
+  // 1. Process Cup Swaps (Fincan Takasları)
+  for (const p of Object.values(players)) {
+    if (!p.alive || !p.verdict) continue;
+
+    let isSwap = false;
+    let targetId = null;
+
+    if (typeof p.verdict === 'object' && p.verdict.type === 'SWAP') {
+      isSwap = true;
+      targetId = p.verdict.target;
+    } else if (typeof p.verdict === 'string' && p.verdict.startsWith('SWAP:')) {
+      isSwap = true;
+      targetId = p.verdict.split(':')[1];
+    }
+
+    if (isSwap && targetId && players[targetId] && players[targetId].alive && targetId !== p.id) {
+      if ((p.swapsLeft ?? 1) > 0) {
+        const target = players[targetId];
+
+        // Consume 1-time swap
+        p.swapsLeft = 0;
+        p.swappedThisRound = { targetId: target.id, targetName: target.name };
+
+        // Swap roundSugars between p and target
+        const tempSugars = JSON.parse(JSON.stringify(p.roundSugars || { sweet: 0, cyanide: 0, total: 0 }));
+        p.roundSugars = JSON.parse(JSON.stringify(target.roundSugars || { sweet: 0, cyanide: 0, total: 0 }));
+        target.roundSugars = tempSugars;
+
+        roundLogs.push({
+          type: 'CUP_SWAP',
+          actor: p.name,
+          target: target.name
         });
-      } else {
+
         newDetailed.push({
-          type: 'SWAP_CANCELLED',
+          type: 'CUP_SWAP',
           round: room.round,
-          from: s.fromName,
-          fromId: s.from,
-          to: s.toName,
-          toId: s.to
+          actor: p.name,
+          actorId: p.id,
+          target: target.name,
+          targetId: target.id
         });
       }
-    } else if (s.status === 'REJECTED') {
-      newDetailed.push({
-        type: 'SWAP_REJECTED',
-        round: room.round,
-        from: s.fromName,
-        fromId: s.from,
-        to: s.toName,
-        toId: s.to
-      });
-    } else if (s.status === 'PENDING') {
-      newDetailed.push({
-        type: 'SWAP_EXPIRED',
-        round: room.round,
-        from: s.fromName,
-        fromId: s.from,
-        to: s.toName,
-        toId: s.to
-      });
     }
   }
 
-  // 2. Resolve drinking (Keep secret from public logs, log to detailedLogs for ghosts)
-  const deaths = [];
-  const poisonedVictims = [];
-
   for (const p of Object.values(players)) {
     if (!p.alive) continue;
-    p.autoPillUsed = false;
-    
-    const drank = p.decision ? p.decision.drink : false;
-    p.lastDrink = drank;
+
+    let drank = false;
+    if (p.verdict === 'DRINK') {
+      drank = true;
+    } else if (typeof p.verdict === 'object' && p.verdict.type === 'SWAP') {
+      drank = true;
+    } else if (typeof p.verdict === 'string' && p.verdict.startsWith('SWAP:')) {
+      drank = true;
+    }
+    p.lastDrank = drank;
+
+    const sugars = p.roundSugars || { sweet: 0, cyanide: 0, total: 0 };
 
     if (drank) {
-      if (p.cupPoisoned) {
-        poisonedVictims.push(p.id);
-        newDetailed.push({
-          type: 'DRINK_POISONED',
-          round: room.round,
-          actor: p.name,
-          actorId: p.id
-        });
-      } else {
-        p.cupPoisoned = false;
-        if (p.poison < 1) {
-          p.poison += 1; // RELOAD!
+      if (sugars.cyanide > 0) {
+        // POISONED!
+        if ((p.pill || 0) > 0) {
+          p.pill = 0;
+          p.autoPillUsed = true;
+
+          // -2 Points Penalty for drinking cyanide!
+          const prevPoints = p.points || 0;
+          const pointsLost = Math.min(prevPoints, 2);
+          p.points = Math.max(0, prevPoints - 2);
+          p.pointsLostThisRound = pointsLost;
+
+          // Award +1 Poison Hit Bounty to each poisoner who successfully tricked this player!
+          const killers = sugars.cyanideSources || [];
+          if (killers.length > 0) {
+            p.nemesis = killers[0].name;
+          }
+          for (const k of killers) {
+            if (players[k.id] && k.id !== p.id) {
+              players[k.id].points = (players[k.id].points || 0) + 1;
+              players[k.id].pointsEarnedThisRound = (players[k.id].pointsEarnedThisRound || 0) + 1;
+              players[k.id].poisonHitsThisRound = (players[k.id].poisonHitsThisRound || 0) + 1;
+            }
+          }
+
+          roundLogs.push({ 
+            type: 'POISONED_PILL', 
+            name: p.name,
+            pointsLost: pointsLost,
+            killers: killers.map(k => k.name)
+          });
+          newDetailed.push({
+            type: 'POISONED_PILL',
+            round: room.round,
+            actor: p.name,
+            actorId: p.id,
+            pointsLost: pointsLost,
+            killers: killers
+          });
+        } else {
+          p.alive = false;
+          // Award +2 Kill Bounty to each killer (excluding self-suicide via swap)!
+          const killers = sugars.cyanideSources || [];
+          if (killers.length > 0) {
+            p.nemesis = killers[0].name;
+          }
+          for (const k of killers) {
+            if (players[k.id] && k.id !== p.id) {
+              players[k.id].points = (players[k.id].points || 0) + 2;
+              players[k.id].pointsEarnedThisRound = (players[k.id].pointsEarnedThisRound || 0) + 2;
+              players[k.id].killsThisRound = (players[k.id].killsThisRound || 0) + 1;
+            }
+          }
+
+          roundLogs.push({ 
+            type: 'DEATH', 
+            name: p.name,
+            killers: killers.map(k => k.name)
+          });
+          newDetailed.push({
+            type: 'DEATH',
+            round: room.round,
+            actor: p.name,
+            actorId: p.id,
+            killers: killers
+          });
         }
+      } else {
+        // CLEAN TEA!
+        const earned = sugars.total || 0;
+        p.points = (p.points || 0) + earned;
+        p.pointsEarnedThisRound = earned;
+
+        roundLogs.push({
+          type: 'DRINK_CLEAN',
+          name: p.name,
+          pointsEarned: earned,
+          totalPoints: p.points
+        });
+
         newDetailed.push({
           type: 'DRINK_CLEAN',
           round: room.round,
           actor: p.name,
-          actorId: p.id
+          actorId: p.id,
+          pointsEarned: earned,
+          totalPoints: p.points
         });
       }
     } else {
-      p.skips += 1;
-      newDetailed.push({
-        type: 'SKIP',
-        round: room.round,
-        actor: p.name,
-        actorId: p.id
-      });
-    }
-  }
-
-  for (const vid of poisonedVictims) {
-    const p = players[vid];
-    if (p.pill > 0) {
-      // Auto-use pill!
-      p.pill = 0;
-      p.cupPoisoned = false;
-      if ((p.poison || 0) < 1) {
-        p.poison = 1; // Gaining poison token on revival since player drank tea
-      }
-      p.autoPillUsed = true;
-      logs.push({ type: 'POISONED_PILL', name: p.name });
-      newDetailed.push({
-        type: 'POISONED_PILL',
-        round: room.round,
-        actor: p.name,
-        actorId: p.id
-      });
-    } else {
-      p.alive = false;
+      // DUMPED TEA (PAS)
+      const wasPoisoned = (sugars.cyanide || 0) > 0;
+      const sweetCount = sugars.sweet || 0;
+      p.dumpedWasPoisoned = wasPoisoned;
+      p.dumpedSweetCount = sweetCount;
       p.autoPillUsed = false;
-      deaths.push(p.name);
-      logs.push({ type: 'DEATH', name: p.name });
+      p.pointsEarnedThisRound = 0;
+      p.pointsLostThisRound = 0;
+      p.alive = true;
+
+      roundLogs.push({ 
+        type: 'DUMP', 
+        name: p.name, 
+        wasPoisoned: wasPoisoned, 
+        sweetCount: sweetCount 
+      });
       newDetailed.push({
-        type: 'DEATH',
+        type: 'DUMP',
         round: room.round,
         actor: p.name,
-        actorId: p.id
+        actorId: p.id,
+        wasPoisoned: wasPoisoned,
+        sweetCount: sweetCount
       });
     }
   }
 
+  // Check Game Over Conditions
   const aliveRemaining = Object.values(players).filter(p => p.alive);
   let nextStatus = 'PHASE_3';
   let winner = null;
 
-  if (aliveRemaining.length === 1) {
+  // 1. Check points victory (5+ Points)
+  const pointLeaders = aliveRemaining.filter(p => p.points >= targetGoal);
+  if (pointLeaders.length > 0) {
+    pointLeaders.sort((a, b) => b.points - a.points);
+    winner = pointLeaders[0].name;
     nextStatus = 'GAME_OVER';
-    winner = aliveRemaining[0].name;
-    logs.push({ type: 'WINNER', winner: winner });
+    roundLogs.push({ type: 'WINNER_POINTS', winner: winner, points: pointLeaders[0].points });
     newDetailed.push({
       type: 'WINNER',
       round: room.round,
-      winner: winner
+      winner: winner,
+      reason: 'POINTS',
+      points: pointLeaders[0].points
+    });
+  } else if (aliveRemaining.length === 1) {
+    // 2. Sole survivor victory
+    winner = aliveRemaining[0].name;
+    nextStatus = 'GAME_OVER';
+    roundLogs.push({ type: 'WINNER_SURVIVOR', winner: winner });
+    newDetailed.push({
+      type: 'WINNER',
+      round: room.round,
+      winner: winner,
+      reason: 'SURVIVOR'
     });
   } else if (aliveRemaining.length === 0) {
-    nextStatus = 'GAME_OVER';
+    // 3. Mutual death
     winner = 'BERABERE (HERKES ÖLDÜ!)';
-    logs.push({ type: 'MUTUAL_DEATH' });
+    nextStatus = 'GAME_OVER';
+    roundLogs.push({ type: 'MUTUAL_DEATH' });
     newDetailed.push({
       type: 'MUTUAL_DEATH',
       round: room.round
@@ -380,49 +529,55 @@ export async function advanceToPhase3(roomCode, room) {
     players[pid].ready = false;
   }
 
+  let lastPoisonEvent = null;
+  const allPoisonVictims = [];
+  for (const p of Object.values(players)) {
+    if (p.lastDrank && (p.roundSugars?.cyanide || 0) > 0) {
+      const killers = p.roundSugars?.cyanideSources || [];
+      const killerName = killers.length > 0 ? killers.map(k => k.name).join(', ') : 'Gizemli Katil';
+      allPoisonVictims.push({
+        victimName: p.name,
+        victimId: p.id,
+        killerName: killerName,
+        allKillers: killers.map(k => k.name),
+        isPillSaved: !!p.autoPillUsed,
+        pointsLost: p.pointsLostThisRound ?? (p.autoPillUsed ? 2 : 0),
+        bountyAwarded: p.autoPillUsed ? 1 : 2
+      });
+    }
+  }
+  if (allPoisonVictims.length > 0) {
+    lastPoisonEvent = {
+      ...allPoisonVictims[0],
+      allVictims: allPoisonVictims
+    };
+  }
+
   await DB.update(`rooms/${roomCode}`, {
     status: nextStatus,
     players: players,
-    roundLogs: logs,
+    roundLogs: roundLogs,
     detailedLogs: newDetailed,
-    poisonedVictims: poisonedVictims,
-    isDuel: (aliveRemaining.length === 2),
-    winner: winner
+    winner: winner,
+    lastPoisonEvent: lastPoisonEvent
   });
-}
 
-export async function usePill(roomCode, playerId) {
-  const room = await DB.get(`rooms/${roomCode}`);
-  if (!room) return;
-  
-  const player = room.players[playerId];
-  if (player && player.pill > 0 && player.alive) {
-    player.pill = 0;
-    player.cupPoisoned = false;
-    player.autoPillUsed = true;
-    if ((player.poison || 0) < 1) {
-      player.poison = 1;
-    }
-    
-    const logs = [...(room.roundLogs || [])];
-    logs.push({ type: 'POISONED_PILL', name: player.name });
-    
-    const detailed = [...(room.detailedLogs || [])];
-    detailed.push({
-      type: 'POISONED_PILL',
-      round: room.round,
-      actor: player.name
-    });
+  const deaths = Object.values(players).filter(p => !p.alive && p.lastDrank && (p.roundSugars?.cyanide || 0) > 0 && !p.autoPillUsed);
+  const savedByPill = Object.values(players).filter(p => p.autoPillUsed);
+  const cleanDrinks = Object.values(players).filter(p => p.lastDrank && (p.roundSugars?.cyanide || 0) === 0);
+  const dumps = Object.values(players).filter(p => !p.lastDrank && p.verdict === 'DUMP');
+  const swaps = Object.values(players).filter(p => p.swappedThisRound);
 
-    const victims = (room.poisonedVictims || []).filter(id => id !== playerId);
+  auditorAgent.recordRoundResolution({
+    round: room.round,
+    deaths: deaths.map(p => p.name),
+    savedByPill: savedByPill.map(p => p.name),
+    cleanDrinks: cleanDrinks.map(p => p.name),
+    dumps: dumps.map(p => p.name),
+    swaps: swaps.map(p => `${p.name} ➔ ${p.swappedThisRound.targetName}`)
+  });
 
-    await DB.update(`rooms/${roomCode}`, {
-      [`players/${playerId}`]: player,
-      poisonedVictims: victims,
-      roundLogs: logs,
-      detailedLogs: detailed
-    });
-  }
+  auditorAgent.setPhase(nextStatus === 'GAME_OVER' ? 'GAME_OVER' : 'PHASE_3', room.round);
 }
 
 export async function nextRound(roomCode) {
@@ -432,22 +587,66 @@ export async function nextRound(roomCode) {
   const players = JSON.parse(JSON.stringify(room.players || {}));
   const detailed = [...(room.detailedLogs || [])];
 
-  const aliveRemaining = Object.values(players).filter(p => p.alive);
-
   for (const pid of Object.keys(players)) {
     players[pid].ready = false;
-    players[pid].decision = null;
-    players[pid].lastDrink = null;
+    players[pid].dropAction = null;
+    players[pid].verdict = null;
+    players[pid].roundSugars = { sweet: 0, cyanide: 0, total: 0 };
     players[pid].autoPillUsed = false;
+    players[pid].lastDrank = null;
+    players[pid].pointsEarnedThisRound = 0;
+    players[pid].dumpedWasPoisoned = false;
+    players[pid].dumpedSweetCount = 0;
+    players[pid].cyanideReloadedByGift = false;
+    players[pid].killsThisRound = 0;
+    players[pid].poisonHitsThisRound = 0;
+    players[pid].pointsLostThisRound = 0;
+    players[pid].swappedThisRound = null;
   }
+
+  const nextRoundNum = (room.round || 1) + 1;
+  // 25% chance to draw Blind Tasting starting from round 2 (balanced for deduction)
+  const modifier = (nextRoundNum >= 2 && Math.random() < 0.25) ? 'BLIND_TASTING' : null;
 
   await DB.update(`rooms/${roomCode}`, {
     status: 'PHASE_1',
-    round: (room.round || 1) + 1,
-    swaps: {},
+    round: nextRoundNum,
     players: players,
-    poisonedVictims: [],
     detailedLogs: detailed,
-    isDuel: (aliveRemaining.length === 2)
+    currentModifier: modifier,
+    lastPoisonEvent: null
+  });
+
+  auditorAgent.setPhase('PHASE_1', nextRoundNum);
+}
+
+export async function rematch(roomCode) {
+  const room = await DB.get(`rooms/${roomCode}`);
+  if (!room) return;
+  const players = JSON.parse(JSON.stringify(room.players || {}));
+  for (const pid of Object.keys(players)) {
+    players[pid].alive = true;
+    players[pid].points = 0;
+    players[pid].pill = 1;
+    players[pid].cyanide = 1;
+    players[pid].swapsLeft = 1;
+    players[pid].ready = false;
+    players[pid].dropAction = null;
+    players[pid].verdict = null;
+    players[pid].roundSugars = { sweet: 0, cyanide: 0, total: 0 };
+    players[pid].autoPillUsed = false;
+    players[pid].lastDrank = null;
+    players[pid].pointsEarnedThisRound = 0;
+  }
+  await DB.update(`rooms/${roomCode}`, {
+    status: 'PHASE_1',
+    round: 1,
+    roundLogs: [],
+    detailedLogs: [],
+    winner: null,
+    players: players,
+    currentModifier: null,
+    lastPoisonEvent: null
   });
 }
+

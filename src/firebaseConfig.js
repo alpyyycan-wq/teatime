@@ -18,7 +18,7 @@ let db = null;
 let isUsingFirebase = false;
 
 // Check if user saved custom config in localStorage
-const savedConfig = localStorage.getItem('cup_of_tea_firebase_config');
+const savedConfig = typeof localStorage !== 'undefined' ? localStorage.getItem('cup_of_tea_firebase_config') : null;
 let activeConfig = DEFAULT_FIREBASE_CONFIG;
 
 if (savedConfig) {
