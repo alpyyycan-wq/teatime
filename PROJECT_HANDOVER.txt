@@ -1,0 +1,131 @@
+================================================================================
+CUP OF TEA (ZEHIRLI CAY PARTISI) - EKSIKSIZ PROJE DEVIR VE GELISDIRICI BELGESI
+================================================================================
+
+1. PROJE VE DEPO BILGILERI
+--------------------------------------------------------------------------------
+- Proje Yerel Dizini : /Users/evaceylan/.gemini/antigravity/scratch/cup-of-tea
+- GitHub Repo URL    : https://github.com/alpyyycan-wq/teatime.git
+- Git Remote         : origin (https://github.com/alpyyycan-wq/teatime.git)
+- Aktif Branch       : main
+- Son Commit         : da17725 ("feat(ui): restore clean cream background UI, remove pixel art overhaul, and preserve self-cyanide bluffing")
+- Calisma Ortami     : Node.js (ES Modules), Vite, Firebase Realtime Database
+- Paket Yoneticisi   : npm
+
+Temel Komutlar:
+  npm install                             -> Paketleri yukler
+  npm run dev                             -> Yerel gelistirme sunucusunu baslatir (localhost:3000 veya Vite portu)
+  npm run build                           -> Uretim derlemesini dist/ klasorune olusturur
+  npx -y firebase-tools deploy --only hosting -> Canli web sunucusuna (Firebase Hosting) deploy eder
+
+
+2. FIREBASE VE CANLI YAYIN BILGILERI
+--------------------------------------------------------------------------------
+- Canli Web Adresi (Hosting) : https://teatime-7dc11.web.app
+- Firebase Proje ID          : teatime-7dc11
+- Firebase Konsolu           : https://console.firebase.google.com/project/teatime-7dc11/overview
+- Realtime Database URL      : https://teatime-7dc11-default-rtdb.firebaseio.com
+- Storage Bucket             : teatime-7dc11.firebasestorage.app
+
+src/firebaseConfig.js Istemci Yapilandirmasi:
+--------------------------------------------------------------------------------
+apiKey            : "AIzaSyBWeOAdamBxbOBpDEy_p2p7ifKrdZZjeFQ"
+authDomain        : "teatime-7dc11.firebaseapp.com"
+databaseURL       : "https://teatime-7dc11-default-rtdb.firebaseio.com"
+projectId         : "teatime-7dc11"
+storageBucket     : "teatime-7dc11.firebasestorage.app"
+messagingSenderId : "755888765022"
+appId             : "1:755888765022:web:c35385254cc4438b2f9ccf"
+measurementId     : "G-XN6HJ1F689"
+
+
+3. DOSYA YAPISI VE MIMARI (CODEBASE MAP)
+--------------------------------------------------------------------------------
+index.html
+  - Mobil oncelikli giris HTML dosyasi.
+  - Google Fonts uzerinden "Playfair Display" ve "Inter" fontlarini yukler.
+  - Uygulama icerigini dinamik olarak <div id="app"> icine render eder.
+
+src/style.css
+  - Dokunsal, fiziksel masa oyunu tasarimi (Artisanal Parchment / Cream Aesthetic).
+  - Renk Paleti: Krem arka plan (#ece6d8), sicak kartlar (#f9f7f2), espresso butonlar (#2b231d), pirinc/altin (#b89343), zehir yesili (#2a6645), kirmizi (#a62b2b).
+  - Butonlar: 3D taban golgeli (box-shadow: 0 4px 0 ...), basilinca cokme efekti (active).
+  - Mobil uyumlu (max-width: 440px mobil konteyner, #app.admin-mode ile masaustu genis ekran).
+
+src/icons.js
+  - Sifir harici gorsel/PNG bagimliligi. Tamamen inline saf SVG vektor ikonlar:
+  - ICONS.teacup, ICONS.poisonVial, ICONS.swapArrows, ICONS.pill, ICONS.skull, ICONS.crown.
+
+src/audio.js
+  - Sifir ses dosyasi (.mp3 / .wav gerektirmez). Web Audio API synthesizer:
+  - playDeathBell() -> Viktorya donemi cenaze cani tınısı.
+  - playSipSound()   -> Cay yudumlama / bardak sesi.
+  - playPillSound()  -> Panzehir devreye girme sihirli rezonansi.
+  - playSlideSound() -> Fincan surukleme / takas sesi.
+  - playPoisonSound()-> Gizlice damlatma / tikanma efekti.
+
+src/firebaseConfig.js
+  - Firebase Realtime Database baslatma.
+  - DB Wrapper nesnesi: DB.set(), DB.update(), DB.get(), DB.listen(), DB.remove().
+  - Baglanti kopsa bile calisan BroadcastChannel ve localStorage yerel sekme senkronizasyon yedegi.
+
+src/gameLogic.js
+  - Cekirdek oyun mantigi ve veritabani veri yapisi:
+    * generateRoomCode() -> 4 haneli rastgele benzersiz oda kodu uretir.
+    * createRoom(hostName) -> Odayi olusturur, kurucuyu ekler.
+    * joinRoom(roomCode, playerName) -> Odaya oyuncu dahil eder (ayni isim kontrolu).
+    * startGame(roomCode) -> Odayi PHASE_1 durumuna gecirir.
+    * submitDropAction(roomCode, playerId, actionChoice) -> 1. Fazda seker veya siyanur birakma eylemini kaydeder.
+    * checkPhase1Completion() / advanceToPhase2() -> Herkes hazir olunca fincanlari masaya dizer ve 2. Faza gecer.
+    * submitVerdict(roomCode, playerId, verdict) -> 2. Fazda cay karari: DRINK (Ic), DUMP (Dok), veya SWAP:targetId (Fincan degistir).
+    * checkPhase2Completion() / advanceToPhase3() -> Sonuclari hesaplar, zehir/panzehir/suikastci puanlarini isler, recap uretir.
+    * nextRound(roomCode) -> Yeni tura gecer.
+    * rematch(roomCode) -> Puanlari sifirlayip oyunu bastan baslatir.
+
+src/botLogic.js
+  - Tek basina oynarken odaya eklenebilen yapay zeka botlari (Bot Watson, Bot Irene, Bot Moriarty, vb.).
+  - Insan gecikmesi simülasyonu (jitter) ile gercekci bekleme sureleri ve duruma gore karar verme matrisi.
+
+src/admin.js
+  - URL sonuna #admin yazilarak acilan gizli moderator/yonetici paneli.
+  - Masadaki canli verileri, fincanlarin icindeki gizli seker/zehir durumlarini gosterir, turlari manuel ilerletmeyi saglar.
+
+src/main.js
+  - Tum arayuz ekranlarinin durum makinesi (State Machine):
+    * renderHome()     -> Ana sayfa: Oda kur, Odaya katil, Dil secimi (TR/EN).
+    * renderLobby()    -> Lobi: Masadakiler, Bot Ekle, Oyunu Baslat.
+    * renderPhase1()   -> 1. Adim: Seker at (Tatli seker ikrami veya Siyanur tuzagi/Truva blofu).
+    * renderPhase2()   -> 2. Adim: Caylar masada (Cayimi Iciyorum, Cayi Dokuyorum, Fincani Degistir & Ic).
+    * renderPhase3()   -> 3. Adim: Birlestirilmis Raund Sonucu (Kisisel sonuc karti, Skor Tablosu, Olaylar Gunlugu).
+    * renderSpectatorScreen() -> Elenen oyuncular icin canli istihbarat ve olay gecmisi ekrani.
+    * renderGameOver() -> Kazanan ilani ve yeniden baslatma.
+
+
+4. PROJENIN MEVCUT DURUMU VE YENI TASARIM HEDEFLERI
+--------------------------------------------------------------------------------
+A) Mevcut Sorun (Neden Degisiyor?):
+   - Su anki mekanik (seker at -> ic veya dok) bir zeka/strateji oyunu gibi degil, yazi-tura veya slot makinesi gibi hissettiriyor.
+   - Kararlarin arkasinda dedektiflik, ipucu ve oyuncuyu heyecanlandiracak zihinsel zafer eksik.
+   - Bir oyuncu zehirlenip elendiginde kenara oturup dakikalarca beklemek zorunda kaliyor (Player Elimination sorunu).
+
+B) Kullanicinin Kesin Direktifleri:
+   1. PARTI OYUNU DEGILDIR:
+      - "Dogruluk mu cesaret mi", sesli komik gorevler, parti sakalari ASLA OLMAYACAK.
+      - Sogukkanli, gerilimli, taktiksel bir akil oyunu / kart & masa stratejisi olacak.
+   2. ILHAM ALINACAK KART & MASA OYUNLARI:
+      - Sushi Go! : Essamanli kart secimi, pick-and-pass drafting, kombo ve set biriktirme (bisküvi, krema, cay yapraklari).
+      - 6 nimmt!  : Masadaki ortak fincanlara herkesin ayni anda kart oynamasi. Fincan kapasitesini (orn: 5. dozu) tasiran kisinin o fincanin tamamini icmek/cezasini cekmek zorunda kalmasi (Push-your-luck). Sifir bekleme suresi.
+      - Bohnanza   : Sirasi degistirilemeyen el duzeni, zorunlu kart oynama, istemedigin olumcul kartlari/zehirleri diplomatik pazarlikla baskasina kitleme sanati.
+   3. OYUNCU ELENMESI (OLUM) DILEMMASI:
+      - Zehir ictiginde oyuncunun kenarda 10 dakika beklemesi sikici.
+      - Alternatif 1 (Tavsiye Edilen): Zehir aninda oldurmez; buyuk Eksi Puan / Toksisite verir. Herkes oyun sonuna kadar masada kalir, en yuksek net puan veya en az toksisitesi olan kazanir.
+      - Alternatif 2: 3 Can / Tolerans havuzu (Buckshot Roulette gibi). 1 zehirde 1 can gider, 3 canda elenilir.
+      - Alternatif 3: Zehirlenen elenir AMA el 45 saniyede aninda biter (Love Letter gibi), 5 saniye sonra herkes tekrar masada baslar.
+   4. MONETIZASYON (GELIR MODELI):
+      - Oyun %100 Free-to-Play olacak.
+      - Kesinlikle Pay-to-Win (para odeyip can/kazanma satin alma) OLMAYACAK.
+      - Tabu'nun ekstra kelime karti satmasi gibi: Oyunun icinde satin alinabilen "Yeni Taktik Kart / Esya Paketleri" (Expansion Decks) satilacak. Masada sadece 1 kisi (Host) satin alsa bile tum masa o paketle oynayabilecek (Jackbox modeli).
+
+================================================================================
+BU METIN YENI YAPAY ZEKAYA EKSIKSIZ AKTARILMAK UZERE HAZIRLANMISTIR.
+================================================================================
