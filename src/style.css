@@ -566,36 +566,45 @@ body {
 }
 
 .pixel-action-card {
-  background: #28142b;
-  border: 2px solid #522d57;
-  border-radius: 8px;
-  padding: 8px 4px;
+  background: #c8bcab;
+  border: 2px solid #26160f;
+  border-top: 2px solid #f5eedb;
+  border-left: 2px solid #f5eedb;
+  border-right: 2px solid #7e6e5f;
+  border-bottom: 3px solid #7e6e5f;
+  border-radius: 4px;
+  padding: 10px 4px 8px 4px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 8px;
   cursor: pointer;
-  box-shadow: 0 4px 0 #0f0710;
-  transition: all 0.1s ease;
-  min-height: 80px;
-  color: #ffcf77;
+  box-shadow: 0 4px 0 #120906;
+  transition: transform 0.08s ease, box-shadow 0.08s ease, background 0.1s ease;
+  min-height: 88px;
+  color: #1a0c06;
 }
 
 .pixel-action-card:hover {
-  border-color: #8c4c96;
+  background: #dcd1c2;
+  border-color: #26160f;
 }
 
 .pixel-action-card:active {
   transform: translateY(3px);
-  box-shadow: 0 1px 0 #0f0710;
+  box-shadow: 0 1px 0 #120906;
 }
 
 .pixel-action-card.active-gold {
   background: #f2b705;
-  border-color: #8c670a;
+  border: 2px solid #361f03;
+  border-top: 2px solid #fef08a;
+  border-left: 2px solid #fef08a;
+  border-right: 2px solid #854d0e;
+  border-bottom: 3px solid #854d0e;
   color: #160c02;
-  box-shadow: 0 0 12px rgba(242, 183, 5, 0.6), 0 4px 0 #6e5006;
+  box-shadow: 0 0 14px rgba(242, 183, 5, 0.7), 0 4px 0 #2b1802;
 }
 
 .pixel-action-card.disabled {
@@ -607,15 +616,18 @@ body {
 
 .pixel-action-title {
   font-family: var(--font-pixel-heading);
-  font-size: 0.68rem;
+  font-size: 0.72rem;
   font-weight: 800;
   letter-spacing: 0.5px;
   text-align: center;
   line-height: 1.1;
+  color: #1a0c06;
+  text-shadow: 0 1px 0 rgba(255,255,255,0.4);
 }
 
 .pixel-action-card.active-gold .pixel-action-title {
   color: #160c02;
+  text-shadow: 0 1px 0 rgba(255,255,255,0.3);
 }
 
 .pixel-action-icon {
@@ -3720,8 +3732,8 @@ body {
 }
 
 .action-pixel-icon {
-  width: 26px;
-  height: 26px;
+  width: 36px;
+  height: 36px;
   object-fit: contain;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
@@ -3729,8 +3741,8 @@ body {
 }
 
 .action-pixel-icon.swap-deck-icon {
-  width: 48px;
-  height: 24px;
+  width: 36px;
+  height: 36px;
 }
 
 .pixel-action-card:not(.active-gold) .action-pixel-icon {
