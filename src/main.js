@@ -1027,7 +1027,7 @@ function renderHome() {
         </button>
       </div>
 
-      <!-- Footer Links: Admin & Auditor -->
+      <!-- Footer Links: Admin, Auditor & Sprite Maker -->
       <div class="home-footer-nav">
         <a href="#admin" id="btnAdminLink" class="home-admin-badge">
           <span>🛠️</span> ${L.adminPanel}
@@ -1035,6 +1035,9 @@ function renderHome() {
         <button id="btnHomeAuditorLink" class="home-auditor-link">
           <span>🕵️</span> ${currentLang === 'tr' ? 'Denetçi Agent' : 'Auditor Agent'}
         </button>
+        <a href="/sprite-maker.html" target="_blank" class="home-admin-badge" style="border-color:#e6b843; color:#fbe69e;">
+          <span>🎨</span> Sprite Studio
+        </a>
       </div>
     </div>
   `;

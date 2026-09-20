@@ -1,0 +1,1728 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>TeaSprite Studio — 16-Bit Pixel Art & UI Maker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Pixelify+Sans:wght@600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #0f0709;
+      --bg-panel: #1a0d10;
+      --bg-card: #231216;
+      --bg-toolbar: #160a0d;
+      --border-dark: #0a0406;
+      --border-light: #3d2027;
+      --gold-primary: #e6b843;
+      --gold-dark: #8c670a;
+      --gold-light: #fbe69e;
+      --crimson-primary: #a82435;
+      --crimson-dark: #5c111b;
+      --crimson-light: #e6455a;
+      --text-main: #f5eedb;
+      --text-muted: #a69188;
+      --accent-blue: #3b82f6;
+      --accent-green: #22c55e;
+      --accent-purple: #a855f7;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: 'Inter', sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      image-rendering: pixelated;
+    }
+
+    /* HEADER */
+    header {
+      background: #15090c;
+      border-bottom: 2px solid var(--border-light);
+      box-shadow: 0 3px 0 var(--border-dark);
+      height: 46px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+      z-index: 50;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-logo {
+      width: 26px;
+      height: 26px;
+      image-rendering: pixelated;
+    }
+
+    .brand-title {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 11px;
+      color: var(--gold-primary);
+      text-shadow: 1px 1px 0 #000;
+      letter-spacing: 0.5px;
+    }
+
+    .brand-tag {
+      font-family: 'Pixelify Sans', monospace;
+      font-size: 11px;
+      background: var(--crimson-dark);
+      color: #ffd4dc;
+      padding: 2px 6px;
+      border: 1px solid var(--crimson-light);
+      border-radius: 2px;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* CHUNKY RETRO BUTTONS */
+    .btn-retro {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 9px;
+      background: var(--bg-card);
+      color: var(--text-main);
+      border: 1px solid var(--border-light);
+      border-top: 1px solid #5a303a;
+      border-left: 1px solid #5a303a;
+      border-right: 2px solid #0a0406;
+      border-bottom: 3px solid #0a0406;
+      border-radius: 3px;
+      padding: 6px 10px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: transform 0.05s ease, border-bottom-width 0.05s ease;
+    }
+
+    .btn-retro:hover {
+      background: #2f191f;
+      color: #fff;
+    }
+
+    .btn-retro:active, .btn-retro.active {
+      transform: translateY(2px);
+      border-bottom-width: 1px;
+      background: #1e0d12;
+    }
+
+    .btn-gold {
+      background: #967012;
+      color: #fff;
+      border-color: #f7d070 #453205 #291d03 #e6b843;
+    }
+    .btn-gold:hover {
+      background: #b58819;
+    }
+
+    .btn-crimson {
+      background: var(--crimson-primary);
+      color: #fff;
+      border-color: var(--crimson-light) #30060c #1c0206 #df384e;
+    }
+    .btn-crimson:hover {
+      background: #c22d41;
+    }
+
+    .btn-blue {
+      background: #1d4ed8;
+      color: #fff;
+      border-color: #60a5fa #0c256d #061540 #3b82f6;
+    }
+
+    .btn-green {
+      background: #15803d;
+      color: #fff;
+      border-color: #4ade80 #0c4320 #062311 #22c55e;
+    }
+
+    /* WORKSPACE */
+    .workspace {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* LEFT TOOLBAR */
+    .toolbar-left {
+      width: 58px;
+      background: var(--bg-toolbar);
+      border-right: 2px solid var(--border-light);
+      box-shadow: 2px 0 0 var(--border-dark);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 10px 0;
+      gap: 8px;
+      z-index: 20;
+    }
+
+    .tool-btn {
+      width: 42px;
+      height: 42px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-light);
+      border-top: 1px solid #4a242d;
+      border-bottom: 2px solid #0a0406;
+      border-radius: 3px;
+      color: var(--text-main);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 16px;
+      position: relative;
+    }
+
+    .tool-btn:hover {
+      background: #331a20;
+    }
+
+    .tool-btn.active {
+      background: var(--crimson-primary);
+      border-color: var(--crimson-light);
+      border-bottom: 1px solid #200408;
+      transform: translateY(1px);
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.4);
+    }
+
+    .tool-shortcut {
+      position: absolute;
+      bottom: 2px;
+      right: 3px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 8px;
+      color: var(--text-muted);
+      opacity: 0.7;
+    }
+
+    .tool-btn.active .tool-shortcut {
+      color: #fff;
+      opacity: 0.9;
+    }
+
+    .divider {
+      width: 36px;
+      height: 1px;
+      background: var(--border-light);
+      margin: 4px 0;
+    }
+
+    /* BRUSH SIZES */
+    .size-picker {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 3px;
+      width: 42px;
+    }
+
+    .size-btn {
+      height: 20px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-light);
+      border-bottom: 2px solid #000;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border-radius: 2px;
+    }
+
+    .size-btn.active {
+      background: var(--gold-primary);
+      color: #000;
+      font-weight: bold;
+      border-color: #fff;
+    }
+
+    /* CENTER VIEWPORT / CANVAS */
+    .viewport-container {
+      flex: 1;
+      background: #120709;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: crosshair;
+    }
+
+    /* Checkerboard canvas backdrop */
+    .canvas-wrapper {
+      position: relative;
+      box-shadow: 0 0 0 2px var(--border-light), 0 10px 30px rgba(0,0,0,0.8);
+      background-image: 
+        linear-gradient(45deg, #1f1115 25%, transparent 25%), 
+        linear-gradient(-45deg, #1f1115 25%, transparent 25%), 
+        linear-gradient(45deg, transparent 75%, #1f1115 75%), 
+        linear-gradient(-45deg, transparent 75%, #1f1115 75%);
+      background-size: 16px 16px;
+      background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+      background-color: #170b0e;
+    }
+
+    #drawingCanvas {
+      display: block;
+      image-rendering: pixelated;
+      image-rendering: -moz-crisp-edges;
+      image-rendering: crisp-edges;
+    }
+
+    #overlayCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+      image-rendering: pixelated;
+      image-rendering: -moz-crisp-edges;
+      image-rendering: crisp-edges;
+    }
+
+    /* FLOATING CANVAS CONTROLS (BOTTOM BAR) */
+    .viewport-hud {
+      position: absolute;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(22, 10, 13, 0.94);
+      backdrop-filter: blur(4px);
+      border: 1px solid var(--border-light);
+      border-bottom: 2px solid #000;
+      border-radius: 4px;
+      padding: 4px 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.6);
+      z-index: 10;
+    }
+
+    .hud-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .hud-val {
+      color: var(--gold-primary);
+      font-weight: bold;
+    }
+
+    .hud-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border-light);
+      border-bottom: 2px solid #000;
+      color: var(--text-main);
+      padding: 3px 8px;
+      font-size: 10px;
+      border-radius: 2px;
+      cursor: pointer;
+    }
+    .hud-btn:hover { background: #33171d; }
+    .hud-btn.active { background: var(--crimson-primary); color: #fff; }
+
+    /* RIGHT SIDEBAR PANELS */
+    .sidebar-right {
+      width: 280px;
+      background: var(--bg-panel);
+      border-left: 2px solid var(--border-light);
+      box-shadow: -2px 0 0 var(--border-dark);
+      display: flex;
+      flex-direction: column;
+      z-index: 20;
+      overflow-y: auto;
+    }
+
+    .panel-section {
+      padding: 12px;
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .panel-title {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 9px;
+      color: var(--gold-primary);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* PREVIEW WINDOW */
+    .preview-box {
+      background: #14070a;
+      border: 1px solid var(--border-light);
+      border-radius: 3px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .preview-scales {
+      display: flex;
+      align-items: flex-end;
+      gap: 14px;
+      min-height: 70px;
+      justify-content: center;
+      width: 100%;
+      padding: 6px;
+      background-image: 
+        linear-gradient(45deg, #1f1115 25%, transparent 25%), 
+        linear-gradient(-45deg, #1f1115 25%, transparent 25%), 
+        linear-gradient(45deg, transparent 75%, #1f1115 75%), 
+        linear-gradient(-45deg, transparent 75%, #1f1115 75%);
+      background-size: 12px 12px;
+      background-position: 0 0, 0 6px, 6px -6px, -6px 0px;
+      background-color: #170b0e;
+      border: 1px solid #2f151c;
+      border-radius: 3px;
+    }
+
+    .preview-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .preview-canvas {
+      image-rendering: pixelated;
+      image-rendering: -moz-crisp-edges;
+      image-rendering: crisp-edges;
+    }
+
+    .preview-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 8px;
+      color: var(--text-muted);
+    }
+
+    /* COLOR PICKER & PALETTES */
+    .color-master-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .color-swatch-duo {
+      position: relative;
+      width: 44px;
+      height: 44px;
+    }
+
+    .color-swatch-primary {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 28px;
+      height: 28px;
+      border: 2px solid #fff;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.6);
+      z-index: 2;
+      border-radius: 2px;
+      cursor: pointer;
+    }
+
+    .color-swatch-secondary {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 24px;
+      height: 24px;
+      border: 2px solid #000;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.6);
+      z-index: 1;
+      border-radius: 2px;
+      cursor: pointer;
+    }
+
+    .color-hex-input {
+      flex: 1;
+      background: var(--bg-card);
+      border: 1px solid var(--border-light);
+      border-radius: 2px;
+      padding: 6px 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--gold-light);
+      text-transform: uppercase;
+    }
+
+    .color-swap-btn {
+      width: 26px;
+      height: 26px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-light);
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border-radius: 2px;
+      font-size: 12px;
+    }
+
+    /* PALETTE GRID */
+    .palette-selector {
+      width: 100%;
+      background: var(--bg-card);
+      border: 1px solid var(--border-light);
+      color: var(--gold-light);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      padding: 5px;
+      margin-bottom: 8px;
+      border-radius: 2px;
+    }
+
+    .palette-grid {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 3px;
+      background: #14070a;
+      padding: 6px;
+      border: 1px solid var(--border-light);
+      border-radius: 3px;
+      max-height: 140px;
+      overflow-y: auto;
+    }
+
+    .palette-color {
+      aspect-ratio: 1;
+      border-radius: 2px;
+      cursor: pointer;
+      border: 1px solid rgba(0,0,0,0.5);
+      transition: transform 0.05s ease;
+    }
+
+    .palette-color:hover {
+      transform: scale(1.2);
+      z-index: 5;
+      border-color: #fff;
+    }
+
+    .palette-color.selected {
+      border: 2px solid #fff;
+      box-shadow: 0 0 0 1px #000;
+    }
+
+    /* PRESETS & TEMPLATES */
+    .preset-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+
+    .btn-template {
+      background: var(--bg-card);
+      border: 1px solid var(--border-light);
+      border-bottom: 2px solid #000;
+      color: var(--text-main);
+      padding: 6px 8px;
+      font-size: 10px;
+      text-align: left;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 2px;
+    }
+
+    .btn-template:hover {
+      background: #33171d;
+      border-color: var(--gold-dark);
+    }
+
+    /* EXPORT OPTIONS */
+    .export-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    /* MODAL OVERLAY */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(8, 3, 5, 0.85);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+
+    .modal-card {
+      background: var(--bg-panel);
+      border: 2px solid var(--gold-primary);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.9), 0 0 0 1px #000;
+      border-radius: 4px;
+      width: 480px;
+      max-width: 90vw;
+      padding: 18px;
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      border-bottom: 1px solid var(--border-light);
+      padding-bottom: 8px;
+    }
+
+    .modal-title {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 11px;
+      color: var(--gold-primary);
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 16px;
+    }
+    .modal-close:hover { color: #fff; }
+
+    .code-box {
+      background: #0d0406;
+      border: 1px solid var(--border-light);
+      border-radius: 3px;
+      color: #7ee787;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      padding: 10px;
+      width: 100%;
+      height: 160px;
+      resize: none;
+      white-space: pre;
+      margin-bottom: 12px;
+      outline: none;
+    }
+
+    /* STATUS / TOAST */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--gold-primary);
+      color: #000;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 9px;
+      padding: 10px 14px;
+      border: 2px solid #fff;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.7);
+      border-radius: 2px;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 0.2s, transform 0.2s;
+      pointer-events: none;
+      z-index: 200;
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- TOP HEADER -->
+  <header>
+    <div class="brand">
+      <svg class="brand-logo" viewBox="0 0 24 24" shape-rendering="crispEdges">
+        <rect x="5" y="7" width="14" height="2" fill="#e6b843"/>
+        <rect x="4" y="9" width="16" height="6" fill="#8c670a"/>
+        <rect x="5" y="15" width="14" height="2" fill="#e6b843"/>
+        <rect x="3" y="17" width="18" height="2" fill="#c79628"/>
+        <rect x="18" y="10" width="3" height="4" fill="#e6b843"/>
+      </svg>
+      <div class="brand-title">TEASPRITE STUDIO</div>
+      <div class="brand-tag">16-BIT PIXEL FORGE</div>
+    </div>
+
+    <div class="header-actions">
+      <button class="btn-retro" id="btnNewCanvas">📄 YENİ</button>
+      <label class="btn-retro" style="margin:0;">
+        📂 RESİM AÇ
+        <input type="file" id="fileImporter" accept="image/*" style="display:none;">
+      </label>
+      <button class="btn-retro" id="btnUndo" title="Geri Al (Ctrl+Z)">↩️ GERİ</button>
+      <button class="btn-retro" id="btnRedo" title="İleri Al (Ctrl+Y)">↪️ İLERİ</button>
+      <div class="divider" style="height:20px; width:1px;"></div>
+      <button class="btn-retro btn-crimson" id="btnClear">🧹 TEMİZLE</button>
+      <button class="btn-retro btn-gold" id="btnExportModal">💾 OYUNA AKTAR / İNDİR</button>
+      <a href="/" class="btn-retro btn-blue" target="_blank">🎮 OYUNA DÖN</a>
+    </div>
+  </header>
+
+  <!-- MAIN WORKSPACE -->
+  <div class="workspace">
+
+    <!-- LEFT TOOLBAR -->
+    <div class="toolbar-left">
+      <button class="tool-btn active" data-tool="pencil" title="Kalem (B)">
+        ✏️<span class="tool-shortcut">B</span>
+      </button>
+      <button class="tool-btn" data-tool="eraser" title="Silgi (E)">
+        🧹<span class="tool-shortcut">E</span>
+      </button>
+      <button class="tool-btn" data-tool="bucket" title="Boya Kovası (G)">
+        🪣<span class="tool-shortcut">G</span>
+      </button>
+      <button class="tool-btn" data-tool="picker" title="Renk Seçici / Damlalık (I)">
+        💧<span class="tool-shortcut">I</span>
+      </button>
+      
+      <div class="divider"></div>
+
+      <button class="tool-btn" data-tool="line" title="Çizgi Aracı (L)">
+        📏<span class="tool-shortcut">L</span>
+      </button>
+      <button class="tool-btn" data-tool="rect" title="Dikdörtgen (U)">
+        🔲<span class="tool-shortcut">U</span>
+      </button>
+      <button class="tool-btn" data-tool="circle" title="Piksel Çember (C)">
+        ⭕<span class="tool-shortcut">C</span>
+      </button>
+      <button class="tool-btn" data-tool="dither" title="16-Bit Dither/Gölgelendirme Fırçası (D)">
+        🏁<span class="tool-shortcut">D</span>
+      </button>
+      <button class="tool-btn" data-tool="shade" title="Koyulaştır / Aç (S)">
+        💡<span class="tool-shortcut">S</span>
+      </button>
+
+      <div class="divider"></div>
+
+      <!-- BRUSH SIZES -->
+      <div class="size-picker">
+        <button class="size-btn active" data-size="1">1</button>
+        <button class="size-btn" data-size="2">2</button>
+        <button class="size-btn" data-size="3">3</button>
+        <button class="size-btn" data-size="4">4</button>
+      </div>
+
+      <div class="divider"></div>
+
+      <button class="tool-btn" id="btnMirrorH" title="Yatay Simetri Aynası (M)">
+        🪞<span class="tool-shortcut">M</span>
+      </button>
+    </div>
+
+    <!-- CENTER CANVAS VIEWPORT -->
+    <div class="viewport-container" id="viewportContainer">
+      <div class="canvas-wrapper" id="canvasWrapper">
+        <canvas id="drawingCanvas"></canvas>
+        <canvas id="overlayCanvas"></canvas>
+      </div>
+
+      <!-- HUD FLOATING CONTROLS -->
+      <div class="viewport-hud">
+        <span class="hud-label">BOYUT: <span class="hud-val" id="hudDim">32x26</span></span>
+        <span class="hud-label">ZOOM: <span class="hud-val" id="hudZoom">1600%</span></span>
+        <button class="hud-btn" id="btnZoomOut">➖</button>
+        <button class="hud-btn" id="btnZoomReset">1:1</button>
+        <button class="hud-btn" id="btnZoomIn">➕</button>
+        <div class="divider" style="height:14px; width:1px;"></div>
+        <button class="hud-btn active" id="btnToggleGrid">GRID</button>
+        <button class="hud-btn" id="btnCenterCanvas">ORTALA</button>
+      </div>
+    </div>
+
+    <!-- RIGHT SIDEBAR -->
+    <div class="sidebar-right">
+
+      <!-- PREVIEW SECTION -->
+      <div class="panel-section">
+        <div class="panel-title">
+          <span>CANLI ÖNİZLEME</span>
+          <span style="font-size:8px; color:var(--gold-light);">1X / 2X / 4X</span>
+        </div>
+        <div class="preview-box">
+          <div class="preview-scales">
+            <div class="preview-item">
+              <canvas class="preview-canvas" id="preview1x"></canvas>
+              <span class="preview-tag">1x</span>
+            </div>
+            <div class="preview-item">
+              <canvas class="preview-canvas" id="preview2x"></canvas>
+              <span class="preview-tag">2x</span>
+            </div>
+            <div class="preview-item">
+              <canvas class="preview-canvas" id="preview4x"></canvas>
+              <span class="preview-tag">4x</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- COLOR SECTION -->
+      <div class="panel-section">
+        <div class="panel-title">
+          <span>RENKLER</span>
+          <span style="font-size:8px; color:var(--text-muted);">Sol: 1 / Sağ: 2</span>
+        </div>
+
+        <div class="color-master-row">
+          <div class="color-swatch-duo">
+            <div class="color-swatch-primary" id="swatchPrimary" style="background:#e6b843;"></div>
+            <div class="color-swatch-secondary" id="swatchSecondary" style="background:#160a0d;"></div>
+          </div>
+          <input type="text" class="color-hex-input" id="hexInput" value="#E6B843" maxlength="7">
+          <button class="color-swap-btn" id="btnSwapColors" title="Renkleri Değiştir (X)">⇄</button>
+          <input type="color" id="nativeColorPicker" style="opacity:0; position:absolute; pointer-events:none;">
+        </div>
+
+        <!-- PALETTES -->
+        <select class="palette-selector" id="paletteSelect">
+          <option value="victorian">🫖 Victorian Parlor (Oyun Teması)</option>
+          <option value="teacups">☕ 7 Teacup Master Palette</option>
+          <option value="pico8">👾 PICO-8 Retro 16</option>
+          <option value="endesga32">🕹️ Endesga 32 (Pro Pixel)</option>
+          <option value="gameboy">📼 Game Boy 4-Tone</option>
+        </select>
+
+        <div class="palette-grid" id="paletteGrid"></div>
+      </div>
+
+      <!-- TEMPLATES & ASSETS SECTION -->
+      <div class="panel-section">
+        <div class="panel-title">
+          <span>OYUN ŞABLONLARI</span>
+        </div>
+        <div class="preset-grid">
+          <button class="btn-template" data-tpl="teacup">☕ Fincan (32x26)</button>
+          <button class="btn-template" data-tpl="sugar">🧊 Şeker (16x16)</button>
+          <button class="btn-template" data-tpl="cyanide">💀 Zehir (16x16)</button>
+          <button class="btn-template" data-tpl="pill">💊 Panzehir (16x16)</button>
+          <button class="btn-template" data-tpl="swap">🔀 Takas (24x24)</button>
+          <button class="btn-template" data-tpl="button">🕹️ Buton (64x24)</button>
+        </div>
+      </div>
+
+      <!-- CANVAS DIMENSIONS -->
+      <div class="panel-section">
+        <div class="panel-title">
+          <span>KANVAS BOYUTU</span>
+        </div>
+        <div style="display:flex; gap:6px; margin-bottom:8px;">
+          <input type="number" id="inputWidth" value="32" min="8" max="128" style="width:50%; background:var(--bg-card); border:1px solid var(--border-light); color:#fff; padding:4px; font-family:'JetBrains Mono'; font-size:11px; border-radius:2px;">
+          <span style="align-self:center; color:var(--text-muted);">x</span>
+          <input type="number" id="inputHeight" value="26" min="8" max="128" style="width:50%; background:var(--bg-card); border:1px solid var(--border-light); color:#fff; padding:4px; font-family:'JetBrains Mono'; font-size:11px; border-radius:2px;">
+        </div>
+        <button class="btn-retro btn-gold" id="btnResizeCanvas" style="width:100%; justify-content:center;">📐 BOYUTU UYGULA</button>
+      </div>
+
+      <!-- QUICK EXPORTS -->
+      <div class="panel-section" style="border:none;">
+        <div class="panel-title">
+          <span>HIZLI İNDİR</span>
+        </div>
+        <div class="export-stack">
+          <button class="btn-retro btn-green" id="btnQuickPng1x">💾 PNG İNDİR (1x)</button>
+          <button class="btn-retro btn-gold" id="btnQuickPng4x">💾 PNG İNDİR (4x HD)</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- EXPORT / IMPORT MODAL -->
+  <div class="modal-overlay" id="exportModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title">OYUNA VE KODA AKTAR</div>
+        <button class="modal-close" id="btnCloseModal">✕</button>
+      </div>
+
+      <div style="margin-bottom:12px;">
+        <div style="display:flex; gap:8px; margin-bottom:8px;">
+          <button class="btn-retro active" id="tabBase64">📋 BASE64 DATA-URL</button>
+          <button class="btn-retro" id="tabSvg">📐 PURE SVG</button>
+          <button class="btn-retro" id="tabPngDownload">💾 PNG İNDİR</button>
+        </div>
+        <textarea class="code-box" id="exportCodeBox" readonly></textarea>
+        <button class="btn-retro btn-gold" id="btnCopyExport" style="width:100%; justify-content:center;">
+          📋 KODU KOPYALA
+        </button>
+      </div>
+
+      <div style="font-size:10px; color:var(--text-muted); line-height:1.4;">
+        💡 <b>İpucu:</b> Base64 çıktısını doğrudan <code style="color:var(--gold-light);">src/assetData.js</code> içine yapıştırabilir ya da SVG'yi bileşen olarak kullanabilirsin!
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION -->
+  <div class="toast" id="toast">KOPYALANDI!</div>
+
+  <script>
+    // --- TEASPRITE STUDIO MASTER ENGINE ---
+    (function() {
+      // Configuration & State
+      let width = 32;
+      let height = 26;
+      let zoom = 16; // 1 pixel = 16 screen px
+      let showGrid = true;
+      let mirrorH = false;
+      let currentTool = 'pencil';
+      let brushSize = 1;
+      let primaryColor = '#e6b843';
+      let secondaryColor = '#160a0d';
+      let isDrawing = false;
+      let lastCoord = null;
+      let startCoord = null;
+
+      // History Stack (Undo/Redo)
+      const MAX_HISTORY = 40;
+      let historyStack = [];
+      let historyIndex = -1;
+
+      // Pixel Grid Matrix: Array of colors or null
+      let grid = [];
+
+      // DOM Elements
+      const drawingCanvas = document.getElementById('drawingCanvas');
+      const overlayCanvas = document.getElementById('overlayCanvas');
+      const ctx = drawingCanvas.getContext('2d', { willReadFrequently: true });
+      const overlayCtx = overlayCanvas.getContext('2d');
+      const canvasWrapper = document.getElementById('canvasWrapper');
+      const viewportContainer = document.getElementById('viewportContainer');
+
+      // Previews
+      const preview1x = document.getElementById('preview1x');
+      const preview2x = document.getElementById('preview2x');
+      const preview4x = document.getElementById('preview4x');
+      const ctx1x = preview1x.getContext('2d');
+      const ctx2x = preview2x.getContext('2d');
+      const ctx4x = preview4x.getContext('2d');
+
+      // UI Indicators
+      const hudDim = document.getElementById('hudDim');
+      const hudZoom = document.getElementById('hudZoom');
+      const hexInput = document.getElementById('hexInput');
+      const swatchPrimary = document.getElementById('swatchPrimary');
+      const swatchSecondary = document.getElementById('swatchSecondary');
+      const nativeColorPicker = document.getElementById('nativeColorPicker');
+      const paletteGrid = document.getElementById('paletteGrid');
+      const paletteSelect = document.getElementById('paletteSelect');
+      const toast = document.getElementById('toast');
+
+      // PRESET PALETTES
+      const PALETTES = {
+        victorian: [
+          '#08040a', '#160809', '#241014', '#3b1c21', '#5c222b', '#821124', '#a82435', '#d62828',
+          '#1f1406', '#3d2508', '#664009', '#967012', '#c79628', '#e6b843', '#f7d070', '#fdfbf7',
+          '#0d2618', '#1b4931', '#286e49', '#389e69', '#4ade80', '#0a192f', '#1e3a8a', '#3b82f6',
+          '#60a5fa', '#93c5fd', '#2e1065', '#581c87', '#7e22ce', '#a855f7', '#d8b4fe', '#f3e8ff'
+        ],
+        teacups: [
+          '#f7d070', '#e6b843', '#c79628', '#967012', // Gold
+          '#93c5fd', '#3b82f6', '#1d4ed8', '#0f172a', // Blue
+          '#f87171', '#dc2626', '#991b1b', '#450a0a', // Crimson
+          '#fdba74', '#ea580c', '#9a3412', '#431407', // Copper
+          '#e2e8f0', '#94a3b8', '#64748b', '#334155', // Silver
+          '#86efac', '#22c55e', '#15803d', '#052e16', // Green
+          '#fed7aa', '#f97316', '#c2410c', '#7c2d12', // Orange
+          '#0c060e', '#fdfbf7', '#251318', '#381c22'  // Core trims
+        ],
+        pico8: [
+          '#000000', '#1D2B53', '#7E2553', '#008751', '#AB5236', '#5F574F', '#C2C3C7', '#FFF1E8',
+          '#FF004D', '#FFA300', '#FFEC27', '#00E436', '#29ADFF', '#83769C', '#FF77A8', '#FFCCAA'
+        ],
+        endesga32: [
+          '#be4a2f', '#d77643', '#ead4aa', '#e4a672', '#b86f50', '#733e39', '#3e2731', '#a22633',
+          '#e43b44', '#f77622', '#feae34', '#fee761', '#63c74d', '#3e8948', '#265c42', '#193c3e',
+          '#124e89', '#0099db', '#2ce8f5', '#ffffff', '#c0cbdc', '#8b9bb4', '#5a6988', '#3a4466',
+          '#262b44', '#181425', '#ff0044', '#68386c', '#b55088', '#f6757a', '#e8b796', '#c28569'
+        ],
+        gameboy: [
+          '#0f380f', '#306230', '#8bac0f', '#9bbc0f'
+        ]
+      };
+
+      // INIT ENGINE
+      function init(w = 32, h = 26) {
+        width = w;
+        height = h;
+        grid = new Array(width * height).fill(null);
+        historyStack = [];
+        historyIndex = -1;
+
+        drawingCanvas.width = width;
+        drawingCanvas.height = height;
+        overlayCanvas.width = width;
+        overlayCanvas.height = height;
+
+        preview1x.width = width;
+        preview1x.height = height;
+        preview2x.width = width * 2;
+        preview2x.height = height * 2;
+        preview4x.width = width * 4;
+        preview4x.height = height * 4;
+
+        updateCanvasSize();
+        renderPalette('victorian');
+        pushHistory();
+        render();
+        centerCanvas();
+      }
+
+      function updateCanvasSize() {
+        const sw = width * zoom;
+        const sh = height * zoom;
+        drawingCanvas.style.width = sw + 'px';
+        drawingCanvas.style.height = sh + 'px';
+        overlayCanvas.style.width = sw + 'px';
+        overlayCanvas.style.height = sh + 'px';
+        canvasWrapper.style.width = sw + 'px';
+        canvasWrapper.style.height = sh + 'px';
+        hudDim.textContent = `${width}x${height}`;
+        hudZoom.textContent = `${Math.round((zoom / 1) * 100)}%`;
+      }
+
+      function centerCanvas() {
+        const vw = viewportContainer.clientWidth;
+        const vh = viewportContainer.clientHeight;
+        const cw = width * zoom;
+        const ch = height * zoom;
+        canvasWrapper.style.transform = `translate(0px, 0px)`;
+      }
+
+      // GET / SET PIXEL
+      function getPixel(x, y) {
+        if (x < 0 || x >= width || y < 0 || y >= height) return null;
+        return grid[y * width + x];
+      }
+
+      function setPixel(x, y, color) {
+        if (x < 0 || x >= width || y < 0 || y >= height) return;
+        grid[y * width + x] = color;
+      }
+
+      // RENDER CANVAS
+      function render() {
+        ctx.clearRect(0, 0, width, height);
+
+        for (let y = 0; y < height; y++) {
+          for (let x = 0; x < width; x++) {
+            const color = getPixel(x, y);
+            if (color) {
+              ctx.fillStyle = color;
+              ctx.fillRect(x, y, 1, 1);
+            }
+          }
+        }
+
+        renderGrid();
+        renderPreviews();
+      }
+
+      function renderGrid() {
+        overlayCtx.clearRect(0, 0, width, height);
+
+        if (showGrid && zoom >= 8) {
+          overlayCtx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+          for (let x = 0; x <= width; x++) {
+            overlayCtx.fillRect(x, 0, 0.05, height);
+          }
+          for (let y = 0; y <= height; y++) {
+            overlayCtx.fillRect(0, y, width, 0.05);
+          }
+        }
+
+        // Symmetry Guide Line
+        if (mirrorH) {
+          overlayCtx.fillStyle = 'rgba(230, 184, 67, 0.5)';
+          const midX = Math.floor(width / 2);
+          overlayCtx.fillRect(midX, 0, 0.2, height);
+        }
+      }
+
+      function renderPreviews() {
+        [ctx1x, ctx2x, ctx4x].forEach(c => {
+          c.imageSmoothingEnabled = false;
+          c.clearRect(0, 0, c.canvas.width, c.canvas.height);
+          c.drawImage(drawingCanvas, 0, 0, c.canvas.width, c.canvas.height);
+        });
+      }
+
+      // HISTORY (UNDO / REDO)
+      function pushHistory() {
+        // Truncate future if in middle of stack
+        if (historyIndex < historyStack.length - 1) {
+          historyStack = historyStack.slice(0, historyIndex + 1);
+        }
+        historyStack.push([...grid]);
+        if (historyStack.length > MAX_HISTORY) {
+          historyStack.shift();
+        } else {
+          historyIndex++;
+        }
+      }
+
+      function undo() {
+        if (historyIndex > 0) {
+          historyIndex--;
+          grid = [...historyStack[historyIndex]];
+          render();
+          showToast('GERİ ALINDI');
+        }
+      }
+
+      function redo() {
+        if (historyIndex < historyStack.length - 1) {
+          historyIndex++;
+          grid = [...historyStack[historyIndex]];
+          render();
+          showToast('İLERİ ALINDI');
+        }
+      }
+
+      // COORDINATE CONVERSION
+      function getCanvasCoords(e) {
+        const rect = drawingCanvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        const x = Math.floor((clientX - rect.left) / zoom);
+        const y = Math.floor((clientY - rect.top) / zoom);
+        return { x, y };
+      }
+
+      // DRAWING TOOLS LOGIC
+      function applyBrush(cx, cy, color) {
+        const half = Math.floor(brushSize / 2);
+        for (let dy = -half; dy < brushSize - half; dy++) {
+          for (let dx = -half; dx < brushSize - half; dx++) {
+            const px = cx + dx;
+            const py = cy + dy;
+            setPixel(px, py, color);
+            if (mirrorH) {
+              const mx = (width - 1) - px;
+              setPixel(mx, py, color);
+            }
+          }
+        }
+      }
+
+      // BRESENHAM LINE
+      function drawLine(x0, y0, x1, y1, color) {
+        const dx = Math.abs(x1 - x0);
+        const dy = Math.abs(y1 - y0);
+        const sx = x0 < x1 ? 1 : -1;
+        const sy = y0 < y1 ? 1 : -1;
+        let err = dx - dy;
+
+        while (true) {
+          applyBrush(x0, y0, color);
+          if (x0 === x1 && y0 === y1) break;
+          const e2 = 2 * err;
+          if (e2 > -dy) { err -= dy; x0 += sx; }
+          if (e2 < dx) { err += dx; y0 += sy; }
+        }
+      }
+
+      // BRESENHAM RECTANGLE
+      function drawRect(x0, y0, x1, y1, color, fill = false) {
+        const minX = Math.min(x0, x1);
+        const maxX = Math.max(x0, x1);
+        const minY = Math.min(y0, y1);
+        const maxY = Math.max(y0, y1);
+
+        for (let y = minY; y <= maxY; y++) {
+          for (let x = minX; x <= maxX; x++) {
+            if (fill || x === minX || x === maxX || y === minY || y === maxY) {
+              applyBrush(x, y, color);
+            }
+          }
+        }
+      }
+
+      // BRESENHAM INTEGER CIRCLE (PURE PIXELS - ZERO CURVES)
+      function drawCircle(xc, yc, r, color) {
+        let x = 0, y = r;
+        let d = 3 - 2 * r;
+        const plot = (px, py) => applyBrush(px, py, color);
+
+        while (y >= x) {
+          plot(xc + x, yc + y);
+          plot(xc - x, yc + y);
+          plot(xc + x, yc - y);
+          plot(xc - x, yc - y);
+          plot(xc + y, yc + x);
+          plot(xc - y, yc + x);
+          plot(xc + y, yc - x);
+          plot(xc - y, yc - x);
+          x++;
+          if (d > 0) { y--; d = d + 4 * (x - y) + 10; }
+          else { d = d + 4 * x + 6; }
+        }
+      }
+
+      // FLOOD FILL (4-WAY BFS)
+      function floodFill(startX, startY, targetColor, fillColor) {
+        if (targetColor === fillColor) return;
+        if (startX < 0 || startX >= width || startY < 0 || startY >= height) return;
+
+        const queue = [{ x: startX, y: startY }];
+        const visited = new Uint8Array(width * height);
+
+        while (queue.length > 0) {
+          const { x, y } = queue.pop();
+          const idx = y * width + x;
+          if (visited[idx]) continue;
+          visited[idx] = 1;
+
+          if (getPixel(x, y) === targetColor) {
+            setPixel(x, y, fillColor);
+            if (mirrorH) {
+              setPixel((width - 1) - x, y, fillColor);
+            }
+
+            if (x + 1 < width) queue.push({ x: x + 1, y });
+            if (x - 1 >= 0) queue.push({ x: x - 1, y });
+            if (y + 1 < height) queue.push({ x, y: y + 1 });
+            if (y - 1 >= 0) queue.push({ x, y: y - 1 });
+          }
+        }
+      }
+
+      // DITHER BRUSH (16-BIT CHECKERBOARD SHADING)
+      function applyDither(cx, cy, color) {
+        const half = Math.floor(brushSize / 2);
+        for (let dy = -half; dy < brushSize - half; dy++) {
+          for (let dx = -half; dx < brushSize - half; dx++) {
+            const px = cx + dx;
+            const py = cy + dy;
+            if ((px + py) % 2 === 0) {
+              setPixel(px, py, color);
+              if (mirrorH) setPixel((width - 1) - px, py, color);
+            }
+          }
+        }
+      }
+
+      // SHADE (LIGHTEN / DARKEN)
+      function applyShade(cx, cy, darken = true) {
+        const curr = getPixel(cx, cy);
+        if (!curr) return;
+        const col = hexToRgb(curr);
+        if (!col) return;
+        const factor = darken ? 0.8 : 1.25;
+        const r = Math.min(255, Math.max(0, Math.round(col.r * factor)));
+        const g = Math.min(255, Math.max(0, Math.round(col.g * factor)));
+        const b = Math.min(255, Math.max(0, Math.round(col.b * factor)));
+        const nextHex = rgbToHex(r, g, b);
+        setPixel(cx, cy, nextHex);
+      }
+
+      // MOUSE / TOUCH EVENTS
+      drawingCanvas.addEventListener('mousedown', (e) => {
+        isDrawing = true;
+        const { x, y } = getCanvasCoords(e);
+        lastCoord = { x, y };
+        startCoord = { x, y };
+
+        const activeColor = (e.button === 2) ? secondaryColor : primaryColor;
+
+        if (currentTool === 'pencil') {
+          applyBrush(x, y, activeColor);
+        } else if (currentTool === 'eraser') {
+          applyBrush(x, y, null);
+        } else if (currentTool === 'bucket') {
+          floodFill(x, y, getPixel(x, y), activeColor);
+        } else if (currentTool === 'picker') {
+          const picked = getPixel(x, y);
+          if (picked) setPrimaryColor(picked);
+        } else if (currentTool === 'dither') {
+          applyDither(x, y, activeColor);
+        } else if (currentTool === 'shade') {
+          applyShade(x, y, e.button !== 2);
+        }
+
+        render();
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (!isDrawing) return;
+        const { x, y } = getCanvasCoords(e);
+        if (x === lastCoord.x && y === lastCoord.y) return;
+
+        const activeColor = (e.buttons === 2) ? secondaryColor : primaryColor;
+
+        if (currentTool === 'pencil') {
+          drawLine(lastCoord.x, lastCoord.y, x, y, activeColor);
+        } else if (currentTool === 'eraser') {
+          drawLine(lastCoord.x, lastCoord.y, x, y, null);
+        } else if (currentTool === 'dither') {
+          applyDither(x, y, activeColor);
+        }
+
+        lastCoord = { x, y };
+        render();
+      });
+
+      window.addEventListener('mouseup', (e) => {
+        if (!isDrawing) return;
+        isDrawing = false;
+        const { x, y } = getCanvasCoords(e);
+        const activeColor = (e.button === 2) ? secondaryColor : primaryColor;
+
+        if (currentTool === 'line') {
+          drawLine(startCoord.x, startCoord.y, x, y, activeColor);
+        } else if (currentTool === 'rect') {
+          drawRect(startCoord.x, startCoord.y, x, y, activeColor, false);
+        } else if (currentTool === 'circle') {
+          const r = Math.round(Math.hypot(x - startCoord.x, y - startCoord.y));
+          drawCircle(startCoord.x, startCoord.y, r, activeColor);
+        }
+
+        pushHistory();
+        render();
+      });
+
+      // PREVENT CONTEXT MENU ON CANVAS FOR RIGHT CLICK SECONDARY
+      drawingCanvas.addEventListener('contextmenu', e => e.preventDefault());
+
+      // TOOLBAR SELECTORS
+      document.querySelectorAll('.tool-btn[data-tool]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.tool-btn[data-tool]').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          currentTool = btn.dataset.tool;
+        });
+      });
+
+      document.querySelectorAll('.size-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          brushSize = parseInt(btn.dataset.size);
+        });
+      });
+
+      // SYMMETRY MIRROR
+      const btnMirrorH = document.getElementById('btnMirrorH');
+      btnMirrorH.addEventListener('click', () => {
+        mirrorH = !mirrorH;
+        btnMirrorH.classList.toggle('active', mirrorH);
+        renderGrid();
+        showToast(mirrorH ? 'AYNA AÇIK' : 'AYNA KAPALI');
+      });
+
+      // ZOOM & PAN
+      document.getElementById('btnZoomIn').addEventListener('click', () => setZoom(zoom + 2));
+      document.getElementById('btnZoomOut').addEventListener('click', () => setZoom(Math.max(2, zoom - 2)));
+      document.getElementById('btnZoomReset').addEventListener('click', () => setZoom(16));
+      document.getElementById('btnCenterCanvas').addEventListener('click', centerCanvas);
+
+      function setZoom(z) {
+        zoom = Math.min(48, Math.max(4, z));
+        updateCanvasSize();
+        renderGrid();
+      }
+
+      viewportContainer.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        setZoom(e.deltaY < 0 ? zoom + 2 : zoom - 2);
+      }, { passive: false });
+
+      // TOGGLE GRID
+      const btnToggleGrid = document.getElementById('btnToggleGrid');
+      btnToggleGrid.addEventListener('click', () => {
+        showGrid = !showGrid;
+        btnToggleGrid.classList.toggle('active', showGrid);
+        renderGrid();
+      });
+
+      // COLOR MANAGEMENT
+      function setPrimaryColor(hex) {
+        primaryColor = hex.toUpperCase();
+        swatchPrimary.style.background = primaryColor;
+        hexInput.value = primaryColor;
+      }
+
+      function setSecondaryColor(hex) {
+        secondaryColor = hex.toUpperCase();
+        swatchSecondary.style.background = secondaryColor;
+      }
+
+      document.getElementById('btnSwapColors').addEventListener('click', () => {
+        const temp = primaryColor;
+        setPrimaryColor(secondaryColor);
+        setSecondaryColor(temp);
+      });
+
+      swatchPrimary.addEventListener('click', () => nativeColorPicker.click());
+      nativeColorPicker.addEventListener('input', (e) => setPrimaryColor(e.target.value));
+
+      hexInput.addEventListener('change', (e) => {
+        let val = e.target.value.trim();
+        if (!val.startsWith('#')) val = '#' + val;
+        if (/^#[0-9A-F]{6}$/i.test(val)) setPrimaryColor(val);
+      });
+
+      function renderPalette(key) {
+        const colors = PALETTES[key] || PALETTES.victorian;
+        paletteGrid.innerHTML = '';
+        colors.forEach(hex => {
+          const el = document.createElement('div');
+          el.className = 'palette-color';
+          el.style.backgroundColor = hex;
+          el.title = hex;
+          el.addEventListener('click', () => setPrimaryColor(hex));
+          el.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            setSecondaryColor(hex);
+          });
+          paletteGrid.appendChild(el);
+        });
+      }
+
+      paletteSelect.addEventListener('change', (e) => renderPalette(e.target.value));
+
+      // UNDO / REDO / CLEAR
+      document.getElementById('btnUndo').addEventListener('click', undo);
+      document.getElementById('btnRedo').addEventListener('click', redo);
+      document.getElementById('btnClear').addEventListener('click', () => {
+        if (confirm('Tüm kanvas silinsin mi?')) {
+          grid.fill(null);
+          pushHistory();
+          render();
+          showToast('TEMİZLENDİ');
+        }
+      });
+
+      document.getElementById('btnNewCanvas').addEventListener('click', () => {
+        if (confirm('Yeni boş proje başlatılsın mı?')) {
+          init(width, height);
+        }
+      });
+
+      // RESIZE CANVAS
+      document.getElementById('btnResizeCanvas').addEventListener('click', () => {
+        const newW = parseInt(document.getElementById('inputWidth').value);
+        const newH = parseInt(document.getElementById('inputHeight').value);
+        if (newW >= 8 && newW <= 128 && newH >= 8 && newH <= 128) {
+          init(newW, newH);
+          showToast(`BOYUT: ${newW}x${newH}`);
+        }
+      });
+
+      // TEMPLATES PRELOADER
+      const TEMPLATES = {
+        teacup: {
+          w: 32, h: 26,
+          draw: () => {
+            // Authentic 16-Bit Victorian Teacup
+            // Steam
+            applyBrush(9, 3, '#ffe8d6'); applyBrush(10, 2, '#e8c0a0');
+            applyBrush(17, 2, '#ffe8d6'); applyBrush(18, 1, '#e8c0a0');
+            // Outline
+            drawRect(6, 7, 25, 8, '#0c060e', true);
+            drawRect(5, 8, 6, 17, '#0c060e', true);
+            drawRect(25, 8, 26, 17, '#0c060e', true);
+            drawRect(6, 17, 25, 18, '#0c060e', true);
+            // Cup body
+            drawRect(7, 9, 24, 16, '#c79628', true);
+            // Highlight
+            drawRect(7, 9, 9, 16, '#f7d070', true);
+            // Shadow
+            drawRect(22, 9, 24, 16, '#967012', true);
+            // Saucer
+            drawRect(3, 20, 28, 22, '#e6b843', true);
+            drawRect(4, 21, 27, 21, '#f7d070', true);
+            drawRect(2, 23, 29, 24, '#0c060e', true);
+            // Handle
+            drawRect(26, 10, 29, 14, '#e6b843', false);
+            setPixel(28, 9, '#0c060e');
+            setPixel(29, 15, '#0c060e');
+          }
+        },
+        sugar: {
+          w: 16, h: 16,
+          draw: () => {
+            // 3D Sugar Cube
+            drawRect(3, 3, 12, 12, '#0c060e', true);
+            drawRect(4, 4, 11, 7, '#fdfbf7', true);
+            drawRect(4, 8, 7, 11, '#e2e8f0', true);
+            drawRect(8, 8, 11, 11, '#cbd5e1', true);
+            setPixel(4, 4, '#ffffff');
+            setPixel(5, 4, '#ffffff');
+            setPixel(4, 5, '#ffffff');
+          }
+        },
+        cyanide: {
+          w: 16, h: 16,
+          draw: () => {
+            // Cyanide Skull Poison Vial
+            drawRect(6, 1, 9, 3, '#8c670a', true); // Cork
+            drawRect(4, 4, 11, 14, '#0c060e', true); // Glass border
+            drawRect(5, 5, 10, 13, '#581c87', true); // Purple Liquid
+            // Highlight
+            drawRect(5, 6, 5, 12, '#c084fc', true);
+            // Skull mark
+            setPixel(7, 8, '#fdfbf7'); setPixel(8, 8, '#fdfbf7');
+            setPixel(7, 10, '#fdfbf7'); setPixel(8, 10, '#fdfbf7');
+          }
+        },
+        pill: {
+          w: 16, h: 16,
+          draw: () => {
+            // Antidote Pill
+            drawRect(4, 3, 11, 12, '#0c060e', true);
+            drawRect(5, 4, 10, 7, '#ef4444', true);  // Red half
+            drawRect(5, 8, 10, 11, '#f8fafc', true); // White half
+            drawRect(5, 4, 6, 11, '#ffffff', true);  // Gloss
+          }
+        },
+        swap: {
+          w: 24, h: 24,
+          draw: () => {
+            // Swap Card with Arrows
+            drawRect(3, 2, 20, 21, '#0c060e', true);
+            drawRect(4, 3, 19, 20, '#1d4ed8', true);
+            drawRect(6, 5, 17, 18, '#3b82f6', true);
+            // Curved arrow
+            drawRect(9, 8, 14, 9, '#fde047', true);
+            drawRect(14, 10, 15, 14, '#fde047', true);
+            drawRect(10, 14, 15, 15, '#fde047', true);
+          }
+        },
+        button: {
+          w: 64, h: 24,
+          draw: () => {
+            // 3D Beveled Retro Button
+            drawRect(0, 0, 63, 23, '#0c060e', true);
+            drawRect(1, 1, 62, 21, '#967012', true); // Main body
+            drawRect(1, 1, 62, 2, '#f7d070', true);  // Top highlight
+            drawRect(1, 1, 2, 21, '#f7d070', true);  // Left highlight
+            drawRect(1, 20, 62, 21, '#453205', true);// Bottom shadow
+            drawRect(61, 1, 62, 21, '#453205', true);// Right shadow
+          }
+        }
+      };
+
+      document.querySelectorAll('.btn-template').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const tpl = TEMPLATES[btn.dataset.tpl];
+          if (tpl) {
+            init(tpl.w, tpl.h);
+            tpl.draw();
+            pushHistory();
+            render();
+            showToast(`ŞABLON YÜKLENDİ: ${btn.dataset.tpl.toUpperCase()}`);
+          }
+        });
+      });
+
+      // IMAGE IMPORT
+      document.getElementById('fileImporter').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const img = new Image();
+          img.onload = () => {
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = width;
+            tempCanvas.height = height;
+            const tCtx = tempCanvas.getContext('2d');
+            tCtx.imageSmoothingEnabled = false;
+            tCtx.drawImage(img, 0, 0, width, height);
+            const imgData = tCtx.getImageData(0, 0, width, height).data;
+
+            for (let i = 0; i < width * height; i++) {
+              const r = imgData[i * 4];
+              const g = imgData[i * 4 + 1];
+              const b = imgData[i * 4 + 2];
+              const a = imgData[i * 4 + 3];
+              grid[i] = (a > 32) ? rgbToHex(r, g, b) : null;
+            }
+            pushHistory();
+            render();
+            showToast('RESİM PİKSELLEŞTİRİLDİ');
+          };
+          img.src = ev.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+
+      // EXPORT MODAL & GENERATORS
+      const exportModal = document.getElementById('exportModal');
+      const exportCodeBox = document.getElementById('exportCodeBox');
+      const btnExportModal = document.getElementById('btnExportModal');
+      const btnCloseModal = document.getElementById('btnCloseModal');
+
+      btnExportModal.addEventListener('click', () => {
+        exportModal.style.display = 'flex';
+        showBase64Export();
+      });
+
+      btnCloseModal.addEventListener('click', () => exportModal.style.display = 'none');
+      exportModal.addEventListener('click', e => { if (e.target === exportModal) exportModal.style.display = 'none'; });
+
+      function showBase64Export() {
+        exportCodeBox.value = drawingCanvas.toDataURL('image/png');
+      }
+
+      function generateSvgCode() {
+        let rects = '';
+        for (let y = 0; y < height; y++) {
+          for (let x = 0; x < width; x++) {
+            const c = getPixel(x, y);
+            if (c) {
+              rects += `  <rect x="${x}" y="${y}" width="1" height="1" fill="${c}"/>\n`;
+            }
+          }
+        }
+        return `<svg viewBox="0 0 ${width} ${height}" shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg">\n${rects}</svg>`;
+      }
+
+      document.getElementById('tabBase64').addEventListener('click', (e) => {
+        setActiveTab(e.target);
+        showBase64Export();
+      });
+
+      document.getElementById('tabSvg').addEventListener('click', (e) => {
+        setActiveTab(e.target);
+        exportCodeBox.value = generateSvgCode();
+      });
+
+      document.getElementById('tabPngDownload').addEventListener('click', (e) => {
+        setActiveTab(e.target);
+        downloadPng(4);
+      });
+
+      function setActiveTab(btn) {
+        document.querySelectorAll('.modal-card .btn-retro').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      }
+
+      document.getElementById('btnCopyExport').addEventListener('click', () => {
+        exportCodeBox.select();
+        navigator.clipboard.writeText(exportCodeBox.value);
+        showToast('KOD PANOSUNA KOPYALANDI!');
+      });
+
+      // PNG DOWNLOADERS
+      function downloadPng(scale = 1) {
+        const outCanvas = document.createElement('canvas');
+        outCanvas.width = width * scale;
+        outCanvas.height = height * scale;
+        const oCtx = outCanvas.getContext('2d');
+        oCtx.imageSmoothingEnabled = false;
+        oCtx.drawImage(drawingCanvas, 0, 0, outCanvas.width, outCanvas.height);
+
+        const a = document.createElement('a');
+        a.download = `sprite_${width}x${height}_${scale}x.png`;
+        a.href = outCanvas.toDataURL('image/png');
+        a.click();
+        showToast(`PNG İNDİRİLDİ (${scale}x)`);
+      }
+
+      document.getElementById('btnQuickPng1x').addEventListener('click', () => downloadPng(1));
+      document.getElementById('btnQuickPng4x').addEventListener('click', () => downloadPng(4));
+
+      // TOAST HELPER
+      function showToast(msg) {
+        toast.textContent = msg;
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 1600);
+      }
+
+      // COLOR UTILITIES
+      function hexToRgb(hex) {
+        const res = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return res ? {
+          r: parseInt(res[1], 16),
+          g: parseInt(res[2], 16),
+          b: parseInt(res[3], 16)
+        } : null;
+      }
+
+      function rgbToHex(r, g, b) {
+        return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase();
+      }
+
+      // KEYBOARD SHORTCUTS
+      window.addEventListener('keydown', (e) => {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+        const k = e.key.toLowerCase();
+        if ((e.ctrlKey || e.metaKey) && k === 'z') {
+          e.preventDefault();
+          if (e.shiftKey) redo(); else undo();
+        } else if ((e.ctrlKey || e.metaKey) && k === 'y') {
+          e.preventDefault();
+          redo();
+        } else if (k === 'b' || k === 'p') {
+          document.querySelector('[data-tool="pencil"]').click();
+        } else if (k === 'e') {
+          document.querySelector('[data-tool="eraser"]').click();
+        } else if (k === 'g') {
+          document.querySelector('[data-tool="bucket"]').click();
+        } else if (k === 'i') {
+          document.querySelector('[data-tool="picker"]').click();
+        } else if (k === 'l') {
+          document.querySelector('[data-tool="line"]').click();
+        } else if (k === 'u') {
+          document.querySelector('[data-tool="rect"]').click();
+        } else if (k === 'c') {
+          document.querySelector('[data-tool="circle"]').click();
+        } else if (k === 'd') {
+          document.querySelector('[data-tool="dither"]').click();
+        } else if (k === 's') {
+          document.querySelector('[data-tool="shade"]').click();
+        } else if (k === 'm') {
+          btnMirrorH.click();
+        } else if (k === 'x') {
+          document.getElementById('btnSwapColors').click();
+        }
+      });
+
+      // START ENGINE WITH DEFAULT VICTORIAN TEACUP
+      init(32, 26);
+      TEMPLATES.teacup.draw();
+      pushHistory();
+      render();
+
+    })();
+  </script>
+</body>
+</html>
