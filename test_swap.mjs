@@ -52,7 +52,7 @@ async function testSwapMechanic() {
 
   // Wait for Phase 2
   console.log("5. Waiting for Phase 2...");
-  await page.waitForSelector('.table-scene-container', { timeout: 15000 });
+  await page.waitForSelector('.table-cups-grid', { timeout: 15000 });
   await new Promise(r => setTimeout(r, 1200));
 
   // In Phase 2, click Swap Cup button!
@@ -60,6 +60,11 @@ async function testSwapMechanic() {
   await page.waitForSelector('#btnVerdictSwap');
   await page.click('#btnVerdictSwap');
   await new Promise(r => setTimeout(r, 600));
+
+  // Screenshot 6: Phase 2 with Swap selected
+  const shot6 = path.join(ARTIFACT_DIR, 'screenshot_6_phase2_swap.png');
+  await page.screenshot({ path: shot6, fullPage: false });
+  console.log(`Saved: ${shot6}`);
 
   // Confirm Verdict with Swap
   console.log("7. Confirming verdict with Cup Swap...");
@@ -69,6 +74,11 @@ async function testSwapMechanic() {
   console.log("8. Waiting for Phase 3...");
   await page.waitForSelector('#btnNextRound, .card', { timeout: 15000 });
   await new Promise(r => setTimeout(r, 2000));
+
+  // Screenshot 7: Phase 3 Swap Result
+  const shot7 = path.join(ARTIFACT_DIR, 'screenshot_7_phase3_swap_result.png');
+  await page.screenshot({ path: shot7, fullPage: false });
+  console.log(`Saved: ${shot7}`);
 
   // 9. Advance to Round 2
   console.log("9. Advancing to Round 2...");
@@ -82,10 +92,10 @@ async function testSwapMechanic() {
     await oppCardsR2[0].click();
   }
   await page.click('#btnSubmitPhase1');
-  await page.waitForSelector('.table-scene-container', { timeout: 15000 });
+  await page.waitForSelector('.table-cups-grid', { timeout: 15000 });
   await new Promise(r => setTimeout(r, 1200));
 
-  const isSwapDisabled = await page.$eval('#btnVerdictSwap', el => el.classList.contains('disabled'));
+  const isSwapDisabled = await page.$eval('#btnVerdictSwap', el => el.classList.contains('btn-disabled') || el.disabled);
   console.log("Is Cup Swap disabled in Round 2?", isSwapDisabled ? "YES (Correct: 1 swap per game used!)" : "NO (Error!)");
 
   await browser.close();

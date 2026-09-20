@@ -17,6 +17,14 @@ async function runTestAndCapture() {
 
   console.log("Navigating to local Vite app http://localhost:3000 ...");
   await page.goto('http://localhost:3000', { waitUntil: 'networkidle0' });
+  await page.evaluate(() => localStorage.clear());
+  await page.reload({ waitUntil: 'networkidle0' });
+  await new Promise(r => setTimeout(r, 600));
+
+  // Screenshot 0: Home
+  const shot0 = path.join(ARTIFACT_DIR, 'screenshot_0_home.png');
+  await page.screenshot({ path: shot0, fullPage: false });
+  console.log(`Saved: ${shot0}`);
 
   // 1. Create Room as 'Arthur'
   console.log("Entering name and creating room...");

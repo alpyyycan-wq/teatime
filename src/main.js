@@ -10,20 +10,14 @@ import {
   checkPhase2Completion, 
   advanceToPhase3, 
   nextRound,
-  kickPlayer,
-  rematch
+  kickPlayer 
 } from './gameLogic.js';
 import { playDeathBell, playPillSound, playSipSound, playPoisonSound, playSlideSound } from './audio.js';
-import { ICONS, renderColoredTeacup, CUP_PALETTES } from './icons.js';
-import { ASSET_IMAGES } from './assetData.js';
+import { ICONS } from './icons.js';
 import { initAdminPanel, cleanupAdminPanel } from './admin.js';
 import { addBot, runBotLifecycle } from './botLogic.js';
-import { auditorAgent } from './telemetryAuditor.js';
 
 const appEl = document.getElementById('app');
-
-let isAuditorOpen = false;
-let activeAuditorTab = 'timeline'; // 'timeline' | 'bots' | 'critique'
 
 // Language selection (TR or EN)
 let currentLang = localStorage.getItem('cot_lang') || 'tr';
@@ -36,27 +30,21 @@ const t = {
     namePlaceholderHost: "Örn: Arthur",
     namePlaceholderJoin: "Örn: Victoria",
     createRoom: "Oda Oluştur",
-    createCardTitle: "YENİ BİR MASA KUR",
-    createCardSub: "Viktorya salonunda dostlarınla toplan.",
-    createRoomBtn: "☕ MASA OLUŞTUR",
     roomCodeLabel: "4 Haneli Oda Kodu",
     joinRoom: "Odaya Katıl",
-    joinCardTitle: "BİR MASAYA KATIL",
-    joinCardSub: "4 haneli kod ile salona dahil ol.",
-    joinRoomBtn: "🚪 MASAYA KATIL",
     roomCodeTitle: "Oda Kodu",
     playersAtTable: (n) => `Masada ${n} kişi var`,
     playersList: "Masadakiler",
     you: "(Sen)",
     host: "Kurucu",
     ready: "Hazır",
-    startGame: (n) => `OYUNU BAŞLAT (${n} OYUNCU)`,
+    startGame: (n) => `Oyunu Başlat (${n}/2+ Oyuncu)`,
     waitingHost: "Kurucunun başlatması bekleniyor...",
     leave: "Ayrıl",
     round: "RAUND",
     readyCounter: (r, t) => `${r}/${t} Hazır`,
     scoreLabel: "Şeker Puanı",
-    scoreVal: (p) => `${p}/8 🍬`,
+    scoreVal: (p) => `${p}/5 🍬`,
     pillLabel: "Panzehir (Can)",
     pillVal: (p) => p > 0 ? "1 Can 💊" : "Tükendi",
     cyanideLabel: "Siyanür",
@@ -65,112 +53,93 @@ const t = {
     swapVal: (s) => (s ?? 1) > 0 ? "1 Hak 🔄" : "Tükendi",
     swapBtn: (s) => `🔄 FİNCANI DEĞİŞTİR & İÇ ${(s ?? 1) <= 0 ? '(Tükendi)' : '(1 Hak)'}`,
     swapTargetTitle: "Kimin Fincanıyla Takas Edeceksin?",
-    swapTargetSub: "Fincanını hedefin fincanıyla gizlice değiştir ve onun çayını iç!",
+    swapTargetSub: "Fincanını hedefin fincanıyla gizlice takas eder ve onun çayını içersin! Kendi fincanın hedefe gider.",
     swapBannerTitle: "FİNCANINI GİZLİCE DEĞİŞTİRDİN! 🔄",
-    swapBannerSub: (target) => `${target}'ın fincanını aldın. Kendi fincanın ${target}'a gitti!`,
+    swapBannerSub: (target) => `${target}'ın fincanını çaldın ve içtin. Kendi fincanın ise ${target}'a gitti!`,
     logCupSwap: (actor, target) => `🔄 ${actor}, gizlice ${target}'ın fincanını çaldı ve içti!`,
     detailCupSwap: (actor, target) => `🔄 <strong>${actor}</strong>, gizlice <strong>${target}</strong>'ın fincanını çaldı ve içti!`,
     phase1Title: "1. ADIM: ŞEKERİ AT",
-    phase1Desc: "Gizlice bir fincana tatlı şeker veya siyanür bırak.",
-    dropSweetBtn: "🍬 Çayı Şekerle",
-    dropCyanideBtn: (c) => `☠️ Çayı Zehirle ${c > 0 ? `(${c})` : '(0)'}`,
+    phase1Desc: "Gizlice bir rakibin fincanına şeker bırak. Tatlı şeker ikram edersen +1 Siyanür kazanırsın! Fincanına siyanür attığın rakip içerse +2 Suikastçı Puanı kazanırsın!",
+    dropSweetBtn: "🍬 Tatlı Şeker (İkram / +1 Siyanür)",
+    dropCyanideBtn: (c) => `☠️ Siyanür Küpü (${c} Doz) ${c <= 0 ? '(Yok)' : ''}`,
     targetLabel: "Kimin Fincanına Atacaksın?",
-    targetOpponentSweetSub: "İkram (+1 Siyanür)",
-    targetOpponentCyanideSub: "Zehirle (+2 Puan)",
-    hintSweetOpponent: "🍬 Tatlı şeker ikramı: İçerse puan alır, sen +1 Siyanür kazanırsın.",
-    hintCyanide: "☠️ Siyanür tuzağı: İçerse zehirlenir, sen +2 Puan kazanırsın.",
+    targetOpponentSweetSub: "İkram Et / +1 Siyanür Al",
+    targetOpponentCyanideSub: "Siyanür Hedefi (+2 Puan)",
+    hintSweetOpponent: "🎁 Başkasına tatlı şeker ikram ettin! Ona potansiyel puan gider ama CEBİNE +1 SİYANÜR mermisi yüklenir!",
+    hintCyanide: "☠️ Rakibinin fincanına gizlice ölümcül siyanür attın! Eğer çayını içerse elenir ve sen +2 Suikastçı Puanı kazanırsın!",
     killBountyBanner: (kills) => `🎯 +${kills * 2} SUİKASTÇI PUANI KAZANDIN!`,
-    killBountySub: "Zehirlediğin kurban çayını içti ve elendi!",
+    killBountySub: "Zehirlediğin kurban çayını içti ve elendi! Cinayet ödülü hanene yazıldı.",
     logDeathWithKiller: (victim, killer) => `🎯 ${killer}, ${victim}'ı zehirleyerek eledi (+2 Suikastçı Puanı)!`,
     logDeathMultiKillers: (victim, killers) => `🎯 ${killers.join(', ')} ortaklaşa ${victim}'ı zehirledi (+2'şer Puan)!`,
-    confirmAction: "Kararımı Onayla / Hazırım",
+    confirmAction: "Şekeri Gizlice At ve Bekle",
     waitingOthers: (r, t) => `Diğerleri Bekleniyor (${r}/${t})`,
     phase2Title: "2. ADIM: ÇAYLAR MASADA & KARAR",
     phase2Header: "Masadaki Fincanlar & Blöf",
-    phase2Desc: "Fincanlar masada. İç, dök veya takas et.",
+    phase2Desc: "Herkes şekerini attı, fincanlar masada! Fincanındaki şekerleri gör, masadakileri süz ve kararını ver.",
     cupSugars: (n) => 'Şeker',
     cupSugarsMe: (n) => `Fincanında ${n} Şeker Var!`,
-    phase2CandleHeader: "DECISION PHASE .",
-    myCupStatusLabel: "SENİN FİNCANIN:",
-    actionDrinkTitle: "DRINK",
-    actionDumpTitle: "DUMP",
-    actionSwapTitle: "SWAP CUP",
-    drinkHint: (n) => `+${n} Puan (Temizse) | Siyanür Öldürür`,
-    dumpHint: "0 Puan | Zehirden Kesin Kurtuluş",
-    swapHint: (target) => `🔄 ${target ? target + ' ile' : 'Hedefle'} fincanını takas et!`,
-    chooseActionFirst: "Önce Bir Karar Seç",
-    safeBadgeText: "0 🍬 (Güvenli)",
-    swapCountBadge: (has) => has ? "1 Hak" : "Tükendi",
     drinkBtn: "☕ ÇAYIMI İÇİYORUM",
     dumpBtn: "🫗 ÇAYI DÖKÜYORUM",
-    drinkTipClean: (n) => `Temizse +${n} Puan! Zehir varsa elenirsin!`,
+    drinkTipClean: (n) => `Temizse fincandaki şeker sayısı kadar (+${n} Puan) kazanırsın! İçinde siyanür varsa zehirlenirsin!`,
     dumpTip: "Güvendesin ama 0 puan alırsın.",
     confirmVerdict: "Kararımı Onayla / Hazırım",
     revealResultsHost: "➡️ Masayı Açıkla (Fazı Bitir)",
     verdictTitle: "Çayını Ne Yapacaksın?",
-    resultsTitle: "RESULT PHASE",
+    resultsTitle: "RAUND SONUCU",
     autoPillTitle: "ZEHİRLENDİN AMA PANZEHİR KURTARDI!",
-    autoPillDesc: (lost) => `Panzehir hayatını kurtardı (-${lost || 2} Puan).`,
+    autoPillDesc: (lost) => (lost && lost > 0)
+      ? `Fincanında siyanür vardı! 1 defalık panzehirin (Pill) devreye girdi ve hayatta kaldın ama zehrin etkisiyle <strong>-${lost} Puan</strong> kaybettin!`
+      : "Fincanında siyanür vardı! 1 defalık panzehirin (Pill) otomatik devreye girdi ve hayatta kaldın.",
     poisonHitBanner: (hits) => `🎯 +${hits} ZEHİRLEME PUANI KAZANDIN!`,
-    poisonHitSub: "Zehirlediğin kurban siyanürlü çayı içti!",
+    poisonHitSub: "Zehirlediğin kurban siyanürlü çayını içti! Panzehiri hayatını kurtardı ama ceza puanı yedi ve sen zehirleme ödülü aldın.",
     eliminatedTitle: "ZEHİRLENDİN VE ELENDİN!",
     fondipDrink: "İçkini FONDİP yap! 🍺",
-    deadDesc: "Kadehinde siyanür vardı. Masayı izle.",
+    deadDesc: "Siyanür boğazını yaktı. Artık ölüsün, kenara geçip hayattakileri izle.",
     survivedTitleClean: (pts) => `+${pts} ŞEKER PUANI KAZANDIN! 🍬`,
-    survivedCleanSub: "Temiz çayını içtin ve puanları aldın!",
-    dumpReliefTitle: "KIL PAYI YIRTTIN! 😮‍💨",
-    dumpReliefDesc: "(Çayında siyanür vardı!)",
-    dumpRegretTitle: "BOŞA DÖKTÜN! 🤦‍♂️",
-    dumpRegretDesc: (n) => `Fincanındaki ${n} şeker heba oldu (Temizdi).`,
-    leaderboardTitle: "Skor Tablosu (Hedef: 8 Puan)",
+    survivedCleanSub: "Temiz çayını içtin ve şeker puanlarını cebine koydun!",
+    dumpReliefTitle: "HAYATINI KURTARDIN! 😮‍💨",
+    dumpReliefDesc: "Fincanında gizlice atılmış SİYANÜR vardı! Çayını dökerek mutlak bir ölümden kıl payı kurtuldun!",
+    dumpRegretTitle: "BOŞU BOŞUNA DÖKTÜN! 🤦‍♂️",
+    dumpRegretDesc: (n) => `Fincanında ${n} Tatlı Şeker vardı ve çayın tertemizdi! Boş yere şüphelenip döktün, puanları kaçırdın.`,
+    leaderboardTitle: "Skor Tablosu (Hedef: 5 Puan)",
     roundEvents: "Bu Raund Neler Yaşandı?",
     noEventsRound: "Bu raund özel bir olay yaşanmadı.",
-    poisonTitle: "ÖLÜMCÜL ZEHİRLENME!",
-    poisonSubtitle: "Viktorya Salonunda Cinayet İfşa Oldu",
-    victimLabel: "KURBAN",
-    killerLabel: "KATİL",
-    bountyAwarded: (b) => `+${b} Suikast Puanı`,
-    pillSavedBadge: (pts) => `💊 Panzehir Korudu (-${pts} Puan)`,
-    eliminatedBadge: "☠️ Siyanürle Zehirlendi (Elendi)",
-    poisonProceedBtn: "➜ SONUÇLARA DEVAM ET",
-    roundChroniclesTitle: "BU RAUND NELER YAŞANDI?",
-    roundChroniclesSub: "Masadaki Tüm Kararlar & Olaylar",
-    liveLeaderboardTitle: "CANLI SKOR TABLOSU",
-    leaderboardTarget: "Hedef: 8 Puan",
-    aliveStatus: "HAYATTA",
-    deadStatus: "ELENDİ",
     logDeath: (name) => `☠️ ${name} siyanürlü çayı içti ve elendi!`,
-    logPill: (name, lost) => `💊 ${name} siyanür içti, panzehiri kurtardı (-${lost || 2} Puan)!`,
-    logPillWithKiller: (victim, killer, lost) => `💊 ${victim}, ${killer}'ın siyanürünü içti! Panzehiri kurtardı (-${lost || 2} Puan, ${killer} +1 Ödül)!`,
+    logPill: (name, lost) => (lost && lost > 0)
+      ? `💊 ${name} siyanürlü çayı içti! Panzehiri kurtardı ama -${lost} Puan kaybetti!`
+      : `💊 ${name} siyanürlü çayı içti ama panzehiri kurtardı!`,
+    logPillWithKiller: (victim, killer, lost) => (lost && lost > 0)
+      ? `💊 ${victim}, ${killer}'ın siyanürünü içti! Panzehiri kurtardı ama -${lost} Puan kaybetti (${killer} +1 Ödül)!`
+      : `💊 ${victim}, ${killer}'ın siyanürünü içti ama panzehiri kurtardı!`,
     logDrinkClean: (name, pts) => `☕ ${name} temiz çayını içti (+${pts} Puan)!`,
-    logDumpRelief: (name) => `🫗 ${name} çayını döktü (İçinde Siyanür vardı, kurtuldu! 😮‍💨)`,
-    logDumpRegret: (name) => `🫗 ${name} şüphelendi ve döktü (Çay temizdi! 🤦‍♂️)`,
+    logDumpRelief: (name) => `🫗 ${name} çayını döktü (İçinde Siyanür vardı, hayatını kurtardı! 😮‍💨)`,
+    logDumpRegret: (name) => `🫗 ${name} şüphelendi ve çayını döktü (Çay tertemizdi! 🤦‍♂️)`,
     logWinnerPoints: (winner, pts) => `👑 ŞAMPİYON: ${winner} (${pts} Şeker Puanı)!`,
-    logWinnerSurvivor: (winner) => `👑 ŞAMPİYON: ${winner} (Son Hayatta Kalan)!`,
+    logWinnerSurvivor: (winner) => `👑 ŞAMPİYON: ${winner} (Hayatta Kalan Son Kişi)!`,
     nextRoundBtn: "Sonraki Raundu Başlat",
     waitingNextRound: "Kurucunun sonraki raundu başlatması bekleniyor...",
     gameOverTitle: "ŞAMPİYON BELLİ OLDU!",
     gameOverMutual: "ÇİFTE CİNAYET!",
     gameOverMutualDesc: "Tüm finalistler aynı anda zehirlendi! TÜM MASA FONDİP YAPIYOR!",
-    gameOverWinnerDesc: "Tüm blöfleri ve zehirleri aşıp 8 puana ulaşan şampiyon oldu!",
+    gameOverWinnerDesc: "Tüm blöfleri ve zehirleri aşıp 5 puana ulaşan veya son hayatta kalan şampiyon olur!",
     restartBtn: "Yeni Oyun Başlat",
-    duplicateNameError: "Bu isimde bir oyuncu zaten odada var!",
+    duplicateNameError: "Bu isimde bir oyuncu zaten odada var! Lütfen başka bir isim seçin.",
     kickedFromRoom: "Oda kurucusu tarafından oyundan çıkarıldınız!",
     kickBtn: "At",
     spectatorBadge: "İZLEYİCİ",
     spectatorTitle: "ÖLÜLER MASASI",
-    spectatorSubtitle: "Masadaki tüm gizli sırları canlı izle.",
+    spectatorSubtitle: "Artık masada konuşamazsın. Kenara geçip hayattakilerin tüm sırlarını canlı izle!",
     liveTableTitle: "Canlı Masa Durumu (Gizli İstihbarat)",
-    fullLogTitle: "Oyun Günlüğü",
+    fullLogTitle: "Tüm Detaylarıyla Oyun Günlüğü",
     cupCleanLabel: "Temiz Çay",
     cupPoisonLabel: "ZEHİRLİ!",
     detailDropSweet: (actor, target) => `🍬 <strong>${actor}</strong>, <strong>${target}</strong>'ın fincanına tatlı şeker attı.`,
-    detailGiftCyanide: (actor, target) => `🎁 <strong>${actor}</strong>, <strong>${target}</strong>'a şeker verdi ve <strong>+1 SİYANÜR</strong> kazandı!`,
-    detailDropCyanide: (actor, target) => `☠️ <strong>${actor}</strong>, <strong>${target}</strong>'ın fincanına SİYANÜR attı!`,
-    detailDrinkClean: (actor, pts) => `☕ <strong>${actor}</strong> çayını içti (+${pts} Puan, temiz).`,
+    detailGiftCyanide: (actor, target) => `🎁 <strong>${actor}</strong>, <strong>${target}</strong>'a tatlı şeker ikram etti ve cebine <strong>+1 SİYANÜR</strong> kazandı!`,
+    detailDropCyanide: (actor, target) => `☠️ <strong>${actor}</strong>, <strong>${target}</strong>'ın fincanına gizlice SİYANÜR attı!`,
+    detailDrinkClean: (actor, pts) => `☕ <strong>${actor}</strong> çayını içti (+${pts} Puan, temiz çay).`,
     detailDrinkPoison: (actor) => `☠️ <strong>${actor}</strong> zehirli çayı içti!`,
-    detailDumpRelief: (actor) => `🫗 <strong>${actor}</strong> çayını döktü (Siyanürden kurtuldu! 😮‍💨)`,
-    detailDumpRegret: (actor) => `🫗 <strong>${actor}</strong> çayını döktü (Temiz çaydı! 🤦‍♂️)`,
+    detailDumpRelief: (actor) => `🫗 <strong>${actor}</strong> çayını döktü (İçinde Siyanür vardı, kurtuldu! 😮‍💨)`,
+    detailDumpRegret: (actor) => `🫗 <strong>${actor}</strong> çayını döktü (Temiz çaydı, boşuna döktü! 🤦‍♂️)`,
     detailDeath: (actor) => `💀 <strong>${actor}</strong> siyanür sebebiyle öldü!`,
     detailPill: (actor) => `💊 <strong>${actor}</strong> siyanür içti ama panzehiri kurtardı!`,
     detailWinnerPoints: (winner, pts) => `👑 ŞAMPİYON: <strong>${winner}</strong> (${pts} Puan)!`,
@@ -181,16 +150,16 @@ const t = {
     onlyVisibleToYou: "Sadece Sen Görürsün",
     personalLogEmpty: "Henüz bir hamle yapmadın.",
     myLogDropSweet: (r, target) => `🍬 <strong>${r}</strong>${target}'ın fincanına tatlı şeker attın.`,
-    myLogGiftCyanide: (r, target) => `🎁 <strong>${r}</strong>${target}'a tatlı şeker ikram ettin ve +1 SİYANÜR kazandın!`,
+    myLogGiftCyanide: (r, target) => `🎁 <strong>${r}</strong>${target}'a tatlı şeker ikram ettin ve cebine +1 SİYANÜR kazandın!`,
     myLogDropCyanide: (r, target) => `☠️ <strong>${r}</strong>${target}'ın fincanına gizlice SİYANÜR attın!`,
-    myLogDrinkClean: (r, pts) => `☕ <strong>${r}</strong>Çayını içtin (+${pts} Puan, temizdi).`,
-    myLogDrinkPoison: (r) => `☠️ <strong>${r}</strong>Çayını içtin (Siyanür vardı!).`,
-    myLogDumpRelief: (r) => `🫗 <strong>${r}</strong>Çayını döktün (Siyanür vardı, kurtuldun! 😮‍💨)`,
-    myLogDumpRegret: (r, sweet) => `🫗 <strong>${r}</strong>Çayını döktün (${sweet} şekerli temiz çaydı! 🤦‍♂️)`,
-    myLogPill: (r) => `💊 <strong>${r}</strong>Siyanür içtin ama panzehirin kurtardı!`,
+    myLogDrinkClean: (r, pts) => `☕ <strong>${r}</strong>Çayını içtin (+${pts} Puan kazandın, temizdi).`,
+    myLogDrinkPoison: (r) => `☠️ <strong>${r}</strong>Çayını içtin (İçinde Siyanür vardı!).`,
+    myLogDumpRelief: (r) => `🫗 <strong>${r}</strong>Çayını döktün (İçinde Siyanür vardı, hayatını kurtardın! 😮‍💨)`,
+    myLogDumpRegret: (r, sweet) => `🫗 <strong>${r}</strong>Çayını döktün (${sweet} şekerli temiz çaydı, boşuna döktün! 🤦‍♂️)`,
+    myLogPill: (r) => `💊 <strong>${r}</strong>Siyanür içtin ama panzehirin (Pill) hayatını kurtardı!`,
     myLogDeath: (r) => `💀 <strong>${r}</strong>Siyanür içtin ve elendin!`,
-    adminPanel: "🛠️ Yönetici Paneli",
-    addBot: "+ Bot Ekle"
+    adminPanel: "🛠️ Yönetici Paneli (Oyun Logları)",
+    addBot: "+ Bot Ekle (Yapay Zeka)"
   },
   en: {
     title: "CUP OF TEA",
@@ -199,27 +168,21 @@ const t = {
     namePlaceholderHost: "e.g. Arthur",
     namePlaceholderJoin: "e.g. Victoria",
     createRoom: "Create Room",
-    createCardTitle: "HOST A NEW TABLE",
-    createCardSub: "Gather your company in the Victorian parlor.",
-    createRoomBtn: "☕ CREATE TABLE",
     roomCodeLabel: "4-Letter Room Code",
     joinRoom: "Join Room",
-    joinCardTitle: "JOIN A TABLE",
-    joinCardSub: "Enter 4-letter room code to join the parlor.",
-    joinRoomBtn: "🚪 JOIN TABLE",
     roomCodeTitle: "Room Code",
     playersAtTable: (n) => `${n} players at table`,
     playersList: "At The Table",
     you: "(You)",
     host: "Host",
     ready: "Ready",
-    startGame: (n) => `START GAME (${n} PLAYERS)`,
+    startGame: (n) => `Start Game (${n}/2+ Players)`,
     waitingHost: "Waiting for host to start...",
     leave: "Leave",
     round: "ROUND",
     readyCounter: (r, t) => `${r}/${t} Ready`,
     scoreLabel: "Sugar Points",
-    scoreVal: (p) => `${p}/8 🍬`,
+    scoreVal: (p) => `${p}/5 🍬`,
     pillLabel: "Antidote (Life)",
     pillVal: (p) => p > 0 ? "1 Life 💊" : "Spent",
     cyanideLabel: "Cyanide",
@@ -228,83 +191,64 @@ const t = {
     swapVal: (s) => (s ?? 1) > 0 ? "1 Left 🔄" : "Spent",
     swapBtn: (s) => `🔄 SWAP CUP & DRINK ${(s ?? 1) <= 0 ? '(Spent)' : '(1 Left)'}`,
     swapTargetTitle: "Whose cup will you swap with?",
-    swapTargetSub: "Secretly swap cups with your target and drink their tea!",
+    swapTargetSub: "Secretly swap cups with your target and drink their tea! Your cup goes to them.",
     swapBannerTitle: "YOU SECRETLY SWAPPED CUPS! 🔄",
-    swapBannerSub: (target) => `You took ${target}'s cup. Your cup went to ${target}!`,
+    swapBannerSub: (target) => `You stole and drank ${target}'s cup. Your cup went to ${target}!`,
     logCupSwap: (actor, target) => `🔄 ${actor} secretly swapped cups with ${target} and drank it!`,
     detailCupSwap: (actor, target) => `🔄 <strong>${actor}</strong> secretly swapped cups with <strong>${target}</strong> and drank it!`,
     phase1Title: "STEP 1: DROP THE SUGAR",
-    phase1Desc: "Secretly plant sugar or cyanide into an opponent's cup.",
-    dropSweetBtn: "🍬 Sugar Tea",
-    dropCyanideBtn: (c) => `☠️ Poison Tea ${c > 0 ? `(${c})` : '(0)'}`,
-    targetLabel: "Whose cup are you targeting?",
-    targetOpponentSweetSub: "Treat (+1 Cyanide)",
-    targetOpponentCyanideSub: "Poison (+2 Bounty)",
-    hintSweetOpponent: "🍬 Sweet sugar: If they drink, they score, and you reload +1 Cyanide!",
-    hintCyanide: "☠️ Cyanide dose: If they drink, they are eliminated and you gain +2 Points!",
+    phase1Desc: "Secretly drop sugar into an opponent's teacup. Gifting sweet sugar reloads +1 Cyanide! Eliminating an opponent with cyanide earns +2 Assassin Bounty!",
+    dropSweetBtn: "🍬 Sweet Sugar (Treat / +1 Cyanide)",
+    dropCyanideBtn: (c) => `☠️ Cyanide Cube (${c} Dose${c > 1 ? 's' : ''}) ${c <= 0 ? '(Empty)' : ''}`,
+    targetLabel: "Whose cup are you dropping it into?",
+    targetOpponentSweetSub: "Treat / +1 Cyanide",
+    targetOpponentCyanideSub: "Cyanide Target (+2 Bounty)",
+    hintSweetOpponent: "🎁 Treating an opponent gives them potential points, but reloads +1 CYANIDE in your pocket!",
+    hintCyanide: "☠️ You dropped lethal cyanide into your opponent's cup! If they drink, they are eliminated and you earn +2 Assassin Points!",
     killBountyBanner: (kills) => `🎯 +${kills * 2} ASSASSIN BOUNTY EARNED!`,
-    killBountySub: "Your poisoned victim drank and was eliminated!",
-    logDeathWithKiller: (victim, killer) => `🎯 ${killer} poisoned and eliminated ${victim} (+2 Bounty)!`,
-    logDeathMultiKillers: (victim, killers) => `🎯 ${killers.join(', ')} jointly poisoned ${victim} (+2 each)!`,
-    confirmAction: "Confirm Decision / Ready",
+    killBountySub: "Your poisoned victim drank their tea and was eliminated! Bounty awarded to your score.",
+    logDeathWithKiller: (victim, killer) => `🎯 ${killer} poisoned and eliminated ${victim} (+2 Assassin Bounty)!`,
+    logDeathMultiKillers: (victim, killers) => `🎯 ${killers.join(', ')} jointly poisoned ${victim} (+2 Bounty each)!`,
+    confirmAction: "Drop Sugar Secretly & Wait",
     waitingOthers: (r, t) => `Waiting for Others (${r}/${t})`,
     phase2Title: "STEP 2: TEACUPS REVEAL & VERDICT",
     phase2Header: "Teacups on Table & Bluff",
-    phase2Desc: "Cups on the table. Drink, dump, or swap.",
+    phase2Desc: "Sugars have been dropped! Check the sugar count in your cup, read the parlor, and choose your fate.",
     cupSugars: (n) => n === 1 ? 'Sugar' : 'Sugars',
     cupSugarsMe: (n) => `Your Cup Has ${n} Sugar(s)!`,
-    phase2CandleHeader: "DECISION PHASE .",
-    myCupStatusLabel: "YOUR CUP:",
-    actionDrinkTitle: "DRINK",
-    actionDumpTitle: "DUMP",
-    actionSwapTitle: "SWAP CUP",
-    drinkHint: (n) => `+${n} Pts (If Clean) | Cyanide Kills`,
-    dumpHint: "0 Pts | Guaranteed Survival",
-    swapHint: (target) => `🔄 Swap cups with ${target || 'target'}!`,
-    chooseActionFirst: "Choose an Action First",
-    safeBadgeText: "0 🍬 (Safe)",
-    swapCountBadge: (has) => has ? "1 Left" : "None",
     drinkBtn: "☕ DRINK MY TEA",
     dumpBtn: "🫗 DUMP THE TEA",
-    drinkTipClean: (n) => `If clean, +${n} Points! If poisoned, you drink cyanide!`,
+    drinkTipClean: (n) => `If clean, you gain (+${n} Points) equal to sugar count! If poisoned, you drink cyanide!`,
     dumpTip: "Safe, but you get 0 points.",
     confirmVerdict: "Confirm My Decision",
     revealResultsHost: "➡️ Reveal Results (End Phase)",
     verdictTitle: "What will you do with your tea?",
-    resultsTitle: "RESULT PHASE",
+    resultsTitle: "ROUND RESULTS",
     autoPillTitle: "POISONED BUT SAVED BY ANTIDOTE!",
-    autoPillDesc: (lost) => `Antidote saved your life (-${lost || 2} Points).`,
+    autoPillDesc: (lost) => (lost && lost > 0)
+      ? `Your cup had cyanide! Your single-use antidote pill activated and saved your life, but the poison burned off <strong>-${lost} Points</strong>!`
+      : "Your cup had cyanide! Your single-use antidote pill activated and saved your life.",
     poisonHitBanner: (hits) => `🎯 +${hits} POISON BOUNTY EARNED!`,
-    poisonHitSub: "Your victim drank your poisoned cup!",
+    poisonHitSub: "Your victim drank your poisoned cup! Their antidote saved them, but they lost points and you banked bounty.",
     eliminatedTitle: "POISONED AND ELIMINATED!",
     fondipDrink: "CHUG YOUR REAL DRINK! 🍺",
-    deadDesc: "Cyanide was in your cup. Spectate the table.",
+    deadDesc: "Cyanide burned your throat. You are eliminated. Step aside and observe the survivors.",
     survivedTitleClean: (pts) => `+${pts} SUGAR POINTS EARNED! 🍬`,
     survivedCleanSub: "You drank clean tea and banked points!",
-    dumpReliefTitle: "NARROW ESCAPE! 😮‍💨",
-    dumpReliefDesc: "(There was cyanide in your tea!)",
+    dumpReliefTitle: "YOU SAVED YOUR LIFE! 😮‍💨",
+    dumpReliefDesc: "Your cup had CYANIDE! By dumping your tea, you narrowly escaped certain death!",
     dumpRegretTitle: "YOU DUMPED FOR NOTHING! 🤦‍♂️",
-    dumpRegretDesc: (n) => `Wasted ${n} sugar(s) (It was clean).`,
-    leaderboardTitle: "Leaderboard (Goal: 8 Points)",
+    dumpRegretDesc: (n) => `Your cup had ${n} Sweet Sugar(s) and was clean! You got paranoid and dumped it, missing points!`,
+    leaderboardTitle: "Leaderboard (Goal: 5 Points)",
     roundEvents: "What Happened This Round?",
     noEventsRound: "No special incidents this round.",
-    poisonTitle: "FATAL POISONING!",
-    poisonSubtitle: "Victorian Murder Revealed in the Parlor",
-    victimLabel: "VICTIM",
-    killerLabel: "KILLER",
-    bountyAwarded: (b) => `+${b} Assassin Bounty`,
-    pillSavedBadge: (pts) => `💊 Saved by Pill (-${pts} Pts)`,
-    eliminatedBadge: "☠️ Poisoned & Eliminated",
-    poisonProceedBtn: "➜ CONTINUE TO RESULTS",
-    roundChroniclesTitle: "ROUND CHRONICLES",
-    roundChroniclesSub: "Table Event Log & Decisions",
-    liveLeaderboardTitle: "LIVE LEADERBOARD",
-    leaderboardTarget: "Target: 8 Points",
-    aliveStatus: "ALIVE",
-    deadStatus: "DEAD",
     logDeath: (name) => `☠️ ${name} drank cyanide and was eliminated!`,
-    logPill: (name, lost) => `💊 ${name} drank cyanide, saved by antidote (-${lost || 2} Points)!`,
-    logPillWithKiller: (victim, killer, lost) => `💊 ${victim} drank ${killer}'s cyanide! Antidote saved them (-${lost || 2} Points, ${killer} +1 Bounty)!`,
+    logPill: (name, lost) => (lost && lost > 0)
+      ? `💊 ${name} drank cyanide! Antidote saved them, but lost -${lost} Points!`
+      : `💊 ${name} drank cyanide but was saved by antidote!`,
+    logPillWithKiller: (victim, killer, lost) => (lost && lost > 0)
+      ? `💊 ${victim} drank ${killer}'s cyanide! Antidote saved them, but lost -${lost} Points (${killer} +1 Bounty)!`
+      : `💊 ${victim} drank ${killer}'s cyanide but was saved by antidote!`,
     logDrinkClean: (name, pts) => `☕ ${name} drank clean tea (+${pts} Points)!`,
     logDumpRelief: (name) => `🫗 ${name} dumped tea (Had Cyanide, dodged death! 😮‍💨)`,
     logDumpRegret: (name) => `🫗 ${name} dumped tea (It was clean, missed points! 🤦‍♂️)`,
@@ -315,27 +259,27 @@ const t = {
     gameOverTitle: "A CHAMPION RISES!",
     gameOverMutual: "MUTUAL ASSASSINATION!",
     gameOverMutualDesc: "All finalists drank poison simultaneously! EVERYONE CHUGS!",
-    gameOverWinnerDesc: "The cunning survivor who outwitted all traps and reached 8 points wins!",
+    gameOverWinnerDesc: "The cunning survivor who outwitted all traps and reached 5 points wins!",
     restartBtn: "Start New Game",
-    duplicateNameError: "A player with this name already exists!",
+    duplicateNameError: "A player with this name already exists in the room! Please choose another name.",
     kickedFromRoom: "You were kicked from the room by the host!",
     kickBtn: "Kick",
     spectatorBadge: "SPECTATOR",
     spectatorTitle: "TABLE OF THE DEAD",
-    spectatorSubtitle: "Watch all secret moves live from the beyond.",
-    liveTableTitle: "Live Table Status",
-    fullLogTitle: "Complete Game Log",
+    spectatorSubtitle: "You can no longer speak at the table. Watch all secrets and moves live!",
+    liveTableTitle: "Live Table Status (Classified Intel)",
+    fullLogTitle: "Complete Game Log & Moves",
     cupCleanLabel: "Clean Tea",
     cupPoisonLabel: "POISONED!",
-    detailDropSweet: (actor, target) => `🍬 <strong>${actor}</strong> dropped sweet sugar into <strong>${target}</strong>'s cup.`,
+    detailDropSweet: (actor, target) => `🍬 <strong>${actor}</strong> dropped a sweet sugar into <strong>${target}</strong>'s cup.`,
     detailGiftCyanide: (actor, target) => `🎁 <strong>${actor}</strong> treated <strong>${target}</strong> to sweet sugar and gained <strong>+1 CYANIDE</strong>!`,
     detailDropCyanide: (actor, target) => `☠️ <strong>${actor}</strong> secretly dropped CYANIDE into <strong>${target}</strong>'s cup!`,
-    detailDrinkClean: (actor, pts) => `☕ <strong>${actor}</strong> drank tea (+${pts} Points, clean).`,
+    detailDrinkClean: (actor, pts) => `☕ <strong>${actor}</strong> drank tea (+${pts} Points, clean tea).`,
     detailDrinkPoison: (actor) => `☠️ <strong>${actor}</strong> drank poison!`,
-    detailDumpRelief: (actor) => `🫗 <strong>${actor}</strong> dumped their tea (Saved from cyanide! 😮‍💨)`,
-    detailDumpRegret: (actor) => `🫗 <strong>${actor}</strong> dumped their tea (It was clean! 🤦‍♂️)`,
+    detailDumpRelief: (actor) => `🫗 <strong>${actor}</strong> dumped their tea (Had Cyanide, dodged death! 😮‍💨)`,
+    detailDumpRegret: (actor) => `🫗 <strong>${actor}</strong> dumped their tea (It was clean, missed points! 🤦‍♂️)`,
     detailDeath: (actor) => `💀 <strong>${actor}</strong> died from cyanide!`,
-    detailPill: (actor) => `💊 <strong>${actor}</strong> drank cyanide but was saved by antidote!`,
+    detailPill: (actor) => `💊 <strong>${actor}</strong> swallowed cyanide but was saved by antidote!`,
     detailWinnerPoints: (winner, pts) => `👑 CHAMPION: <strong>${winner}</strong> (${pts} Points)!`,
     detailWinnerSurvivor: (winner) => `👑 CHAMPION: <strong>${winner}</strong> (Sole Survivor)!`,
     detailMutual: "🍻 Everyone died simultaneously! WHOLE TABLE CHUGS!",
@@ -346,14 +290,14 @@ const t = {
     myLogDropSweet: (r, target) => `🍬 <strong>${r}</strong>You dropped sweet sugar into ${target}'s cup.`,
     myLogGiftCyanide: (r, target) => `🎁 <strong>${r}</strong>You treated ${target} to sweet sugar and earned +1 CYANIDE!`,
     myLogDropCyanide: (r, target) => `☠️ <strong>${r}</strong>You secretly dropped CYANIDE into ${target}'s cup!`,
-    myLogDrinkClean: (r, pts) => `☕ <strong>${r}</strong>You drank tea (+${pts} Points, clean).`,
+    myLogDrinkClean: (r, pts) => `☕ <strong>${r}</strong>You drank tea (+${pts} Points, clean tea).`,
     myLogDrinkPoison: (r) => `☠️ <strong>${r}</strong>You drank your tea (Had Cyanide!).`,
     myLogDumpRelief: (r) => `🫗 <strong>${r}</strong>You dumped your tea (Had Cyanide, saved your life! 😮‍💨)`,
-    myLogDumpRegret: (r, sweet) => `🫗 <strong>${r}</strong>You dumped your tea (${sweet} sugars, clean tea! 🤦‍♂️)`,
-    myLogPill: (r) => `💊 <strong>${r}</strong>You drank cyanide but your antidote saved you!`,
+    myLogDumpRegret: (r, sweet) => `🫗 <strong>${r}</strong>You dumped your tea (${sweet} sugars, clean tea, missed points! 🤦‍♂️)`,
+    myLogPill: (r) => `💊 <strong>${r}</strong>You drank cyanide but your antidote (Pill) saved you!`,
     myLogDeath: (r) => `💀 <strong>${r}</strong>You drank cyanide and were eliminated!`,
-    adminPanel: "🛠️ Admin Panel",
-    addBot: "+ Add Bot"
+    adminPanel: "🛠️ Admin Panel (Game Logs)",
+    addBot: "+ Add Bot (AI Player)"
   }
 };
 
@@ -363,16 +307,9 @@ function getL() {
 
 function renderLangToggle() {
   return `
-    <div class="header-controls-group">
-      <button id="btnHeaderAuditor" class="btn-header-auditor" title="Lord Inspector - In-Game Telemetry & Critique Agent">
-        <span>🕵️</span>
-        <span class="header-auditor-label">${currentLang === 'tr' ? 'DENETÇİ' : 'AUDITOR'}</span>
-        <span class="header-auditor-count">${auditorAgent.logs.length}</span>
-      </button>
-      <div style="display:inline-flex; border:2px solid var(--border-strong); border-radius:12px; overflow:hidden; box-shadow:0 2px 0 var(--border-strong);">
-        <button id="setLangTr" style="background:${currentLang === 'tr' ? 'var(--btn-espresso)' : 'var(--bg-card)'}; color:${currentLang === 'tr' ? '#fff' : 'var(--text-main)'}; border:none; padding:4px 10px; font-weight:800; font-size:0.75rem; cursor:pointer;">TR</button>
-        <button id="setLangEn" style="background:${currentLang === 'en' ? 'var(--btn-espresso)' : 'var(--bg-card)'}; color:${currentLang === 'en' ? '#fff' : 'var(--text-main)'}; border:none; padding:4px 10px; font-weight:800; font-size:0.75rem; cursor:pointer;">EN</button>
-      </div>
+    <div style="display:inline-flex; border:2px solid var(--border-strong); border-radius:12px; overflow:hidden; box-shadow:0 2px 0 var(--border-strong); margin-left:auto;">
+      <button id="setLangTr" style="background:${currentLang === 'tr' ? 'var(--btn-espresso)' : 'var(--bg-card)'}; color:${currentLang === 'tr' ? '#fff' : 'var(--text-main)'}; border:none; padding:4px 10px; font-weight:800; font-size:0.75rem; cursor:pointer;">TR</button>
+      <button id="setLangEn" style="background:${currentLang === 'en' ? 'var(--btn-espresso)' : 'var(--bg-card)'}; color:${currentLang === 'en' ? '#fff' : 'var(--text-main)'}; border:none; padding:4px 10px; font-weight:800; font-size:0.75rem; cursor:pointer;">EN</button>
     </div>
   `;
 }
@@ -394,194 +331,7 @@ function attachLangEvents() {
       renderCurrentScreen();
     };
   }
-  const btnAuditor = document.getElementById('btnHeaderAuditor');
-  if (btnAuditor) {
-    btnAuditor.onclick = () => {
-      isAuditorOpen = true;
-      renderAuditorWidget();
-    };
-  }
 }
-
-function renderParlorEmotesBar() {
-  return '';
-}
-
-function attachParlorEmoteEvents() {
-  // Emotes disabled to prevent screen cluttering
-}
-
-function renderAuditorWidget() {
-  const existingModal = document.getElementById('auditorDocketModal');
-  if (existingModal) existingModal.remove();
-
-  if (!isAuditorOpen) {
-    return;
-  }
-
-  const health = auditorAgent.getHealthSummary();
-  const analysis = auditorAgent.getDynamicCritiqueAnalysis();
-
-  const modal = document.createElement('div');
-  modal.id = 'auditorDocketModal';
-  modal.className = 'auditor-docket-overlay';
-
-  let tabContentHtml = '';
-
-  if (activeAuditorTab === 'timeline') {
-    if (auditorAgent.logs.length === 0) {
-      tabContentHtml = `<div style="text-align:center; padding:30px; color:#baa4bd; font-family:var(--font-pixel-heading); font-size:0.75rem;">${currentLang === 'tr' ? 'Henüz telemetri kaydı yok. Oyun ilerledikçe buraya düşecektir.' : 'No telemetry entries yet. Will populate as play progresses.'}</div>`;
-    } else {
-      tabContentHtml = auditorAgent.logs.map(log => `
-        <div class="auditor-log-card">
-          <div class="auditor-log-header">
-            <span class="auditor-log-actor">👤 ${log.actor}</span>
-            <div style="display:flex; align-items:center; gap:6px;">
-              <span style="color:#baa4bd; font-size:0.58rem;">R${log.round} [${log.phase}]</span>
-              <span class="auditor-metric-badge ${log.uxMetric}">${log.uxMetric}</span>
-            </div>
-          </div>
-          <div class="auditor-log-event">➜ ${log.event}</div>
-          ${log.critiqueNote ? `<div class="auditor-log-note">💬 ${log.critiqueNote}</div>` : ''}
-          ${log.recommendation ? `<div class="auditor-log-rec">💡 <strong>Tavsiye:</strong> ${log.recommendation}</div>` : ''}
-        </div>
-      `).join('');
-    }
-  } else if (activeAuditorTab === 'bots') {
-    const botLogs = auditorAgent.logs.filter(l => l.actor.toLowerCase().includes('bot') || l.event.includes('Bot'));
-    if (botLogs.length === 0) {
-      tabContentHtml = `<div style="text-align:center; padding:30px; color:#baa4bd; font-family:var(--font-pixel-heading); font-size:0.75rem;">${currentLang === 'tr' ? 'Botlar henüz hamle yapmadı.' : 'Bots have not taken turns yet.'}</div>`;
-    } else {
-      tabContentHtml = botLogs.map(log => {
-        const details = log.details || {};
-        const uxCritique = details.uxCritique;
-        const uxRec = details.uxRecommendation || log.recommendation;
-        return `
-          <div class="auditor-log-card">
-            <div class="auditor-log-header">
-              <span class="auditor-log-actor">🤖 ${log.actor} <span style="font-size:0.55rem; color:#ffd866; background:#2c1533; padding:1px 5px; border:1px solid #5a2e66; border-radius:3px;">[UX Agent]</span></span>
-              <span style="color:#baa4bd; font-size:0.58rem;">R${log.round} (${log.timestamp})</span>
-            </div>
-            <div class="auditor-log-event">⚡ ${log.event}</div>
-            <div class="auditor-log-note" style="margin-bottom:4px;">🧠 <strong>Strateji:</strong> ${details.motive || log.critiqueNote}</div>
-            ${uxCritique ? `
-              <div style="background:#1d0e21; border-left:3px solid #e67e22; padding:6px 8px; margin-top:4px; font-size:0.72rem; color:#f0d2e4;">
-                <div style="font-family:var(--font-pixel-heading); font-size:0.65rem; color:#f39c12; margin-bottom:2px;">🔍 BOT UX GÖZLEMİ (Hamle Notu):</div>
-                <div>${uxCritique}</div>
-                ${uxRec ? `<div style="color:#ffd866; font-size:0.68rem; margin-top:3px;">💡 <strong>Düzeltme Tavsiyesi:</strong> ${uxRec}</div>` : ''}
-              </div>
-            ` : ''}
-          </div>
-        `;
-      }).join('');
-    }
-  } else if (activeAuditorTab === 'critique') {
-    tabContentHtml = `
-      <div style="display:flex; flex-direction:column; gap:10px;">
-        <div style="background:#200d23; border:2px solid #5a2c60; padding:12px; font-family:var(--font-pixel-ui); font-size:0.78rem; line-height:1.4; color:#f0e2f2;">
-          <div style="font-family:var(--font-pixel-heading); color:#ffd866; font-size:0.8rem; margin-bottom:8px;">
-            🔎 CANLI PLAYTEST ELEŞTİRİSİ (LORD INSPECTOR):
-          </div>
-          <div style="display:flex; flex-direction:column; gap:8px;">
-            ${analysis.critiqueItems.map(item => `
-              <div style="background:${item.type === 'WARN' ? '#331a10' : (item.type === 'PASS' ? '#14291c' : '#1c1b2c')}; border-left:4px solid ${item.type === 'WARN' ? '#e67e22' : (item.type === 'PASS' ? '#2ecc71' : '#3498db')}; padding:8px 10px;">
-                <div style="font-family:var(--font-pixel-heading); font-size:0.72rem; color:${item.type === 'WARN' ? '#f39c12' : (item.type === 'PASS' ? '#2ecc71' : '#5dade2')}; margin-bottom:3px;">
-                  ${item.type === 'WARN' ? '⚠️' : (item.type === 'PASS' ? '✓' : 'ℹ️')} ${item.title}
-                </div>
-                <div style="font-size:0.75rem; color:#e0d2e4;">${item.observation}</div>
-                ${item.recommendation ? `<div style="font-size:0.72rem; color:#ffd866; margin-top:4px;">💡 <em>${item.recommendation}</em></div>` : ''}
-              </div>
-            `).join('')}
-          </div>
-        </div>
-
-        <div style="background:#16091b; border:1.5px solid #4a2850; padding:10px; font-family:var(--font-pixel-ui); font-size:0.72rem; color:#baa4bd;">
-          <strong style="color:#ffd866;">Denetçi Metodolojisi:</strong> Her hamle milisaniye bazında loglanır, oyuncu tereddütü (hesitation > 15s), kurucu erken faz atlamaları ve bot taktiksel kararları incelenir.
-        </div>
-      </div>
-    `;
-  }
-
-  modal.innerHTML = `
-    <div class="auditor-docket-modal">
-      <div class="auditor-header">
-        <div class="auditor-title-row">
-          <span style="font-size:1.2rem;">🕵️</span>
-          <div>
-            <div class="auditor-title">${currentLang === 'tr' ? 'LORD INSPECTOR: DENETİM RAPORU' : 'LORD INSPECTOR: AUDIT DOCKET'}</div>
-            <div style="font-size:0.58rem; color:#baa4bd; font-family:var(--font-pixel-heading);">Victorian Parlor Game Telemetry & Critique Agent</div>
-          </div>
-        </div>
-        <button class="auditor-btn-close" id="btnCloseAuditor">✕</button>
-      </div>
-
-      <div class="auditor-score-bar">
-        <div class="auditor-score-badge">
-          ${currentLang === 'tr' ? 'GENEL SAĞLIK' : 'HEALTH'}: %${health.score} (${health.status})
-        </div>
-        <div class="auditor-score-counts">
-          <span class="count-chip pass">✓ ${health.passCount} Kusursuz</span>
-          <span class="count-chip warn">⚠️ ${health.warnCount} Uyarı</span>
-          <span class="count-chip friction">⛔ ${health.frictionCount} Sürtünme</span>
-        </div>
-      </div>
-
-      <div class="auditor-tabs">
-        <button class="auditor-tab-btn ${activeAuditorTab === 'timeline' ? 'active' : ''}" data-tab="timeline">
-          ${currentLang === 'tr' ? '📋 ADIM ADIM' : '📋 TIMELINE'}
-        </button>
-        <button class="auditor-tab-btn ${activeAuditorTab === 'bots' ? 'active' : ''}" data-tab="bots">
-          ${currentLang === 'tr' ? '🤖 BOT AGENT NOTLARI' : '🤖 BOT AGENT CRITIQUES'}
-        </button>
-        <button class="auditor-tab-btn ${activeAuditorTab === 'critique' ? 'active' : ''}" data-tab="critique">
-          ${currentLang === 'tr' ? '💡 UX ELEŞTİRİ' : '💡 CRITIQUE'}
-        </button>
-      </div>
-
-      <div class="auditor-body" id="auditorBody">
-        ${tabContentHtml}
-      </div>
-
-      <div class="auditor-footer">
-        <button class="auditor-btn-copy" id="btnCopyAuditorReport">
-          📋 ${currentLang === 'tr' ? 'RAPORU KOPYALA (MARKDOWN)' : 'COPY REPORT (MARKDOWN)'}
-        </button>
-        <button class="auditor-btn-dismiss" id="btnDismissAuditor">
-          ✕ ${currentLang === 'tr' ? 'KAPAT' : 'CLOSE'}
-        </button>
-      </div>
-    </div>
-  `;
-
-  document.body.appendChild(modal);
-
-  modal.querySelector('#btnCloseAuditor').onclick = () => {
-    isAuditorOpen = false;
-    renderAuditorWidget();
-  };
-
-  modal.querySelector('#btnDismissAuditor').onclick = () => {
-    isAuditorOpen = false;
-    renderAuditorWidget();
-  };
-
-  modal.querySelectorAll('.auditor-tab-btn').forEach(btn => {
-    btn.onclick = () => {
-      activeAuditorTab = btn.getAttribute('data-tab');
-      renderAuditorWidget();
-    };
-  });
-
-  modal.querySelector('#btnCopyAuditorReport').onclick = () => {
-    const md = auditorAgent.exportReportMarkdown();
-    navigator.clipboard.writeText(md).then(() => {
-      const copyBtn = modal.querySelector('#btnCopyAuditorReport');
-      if (copyBtn) copyBtn.textContent = '✓ KOPYALANDI!';
-      setTimeout(() => { if (copyBtn) copyBtn.textContent = '📋 RAPORU KOPYALA (MARKDOWN)'; }, 2000);
-    });
-  };
-}
-
 
 let myRoomCode = localStorage.getItem('cot_room_code') || '';
 let myPlayerId = localStorage.getItem('cot_player_id') || '';
@@ -593,189 +343,6 @@ let selectedVerdict = null;     // 'DRINK', 'DUMP', or 'SWAP'
 let selectedSwapTarget = null;  // target playerId for swap
 let hasPlayedPhase3Sound = false;
 let lastSeenRound = 0;
-let hasDismissedPoisonCinematic = false;
-let hasDismissedModifierModal = false;
-
-const PALETTE_KEYS = ['blue', 'crimson', 'green', 'gold', 'orange', 'silver', 'copper'];
-function getPlayerCupPalette(player, index) {
-  if (!player) return 'blue';
-  const name = (player.name || '').toLowerCase();
-  if (name.includes('moriarty')) return 'blue';
-  if (name.includes('watson')) return 'crimson';
-  if (name.includes('irene')) return 'green';
-  if (name.includes('lestrade')) return 'orange';
-  if (name.includes('mycroft')) return 'silver';
-  if (name.includes('adler') || name.includes('hudson')) return 'copper';
-  if (player.id === myPlayerId) return 'gold';
-  return PALETTE_KEYS[index % PALETTE_KEYS.length];
-}
-
-function getPlayerEmblemNumber(player, index) {
-  if (!player) return (index + 1).toString();
-  const name = (player.name || '').toLowerCase();
-  if (name.includes('moriarty')) return '1';
-  if (name.includes('watson')) return '2';
-  if (name.includes('irene')) return '0';
-  if (player.id === myPlayerId || name.includes('player') || name.includes('yon') || name.includes('sen') || name.includes('arthur')) return '1';
-  if (name.includes('lestrade')) return '3';
-  if (name.includes('mycroft')) return '2';
-  if (name.includes('adler')) return '1';
-  return (index % 5).toString();
-}
-
-function arrangePlayersFor232Table(players) {
-  const me = players.find(p => p.id === myPlayerId);
-  const others = players.filter(p => p.id !== myPlayerId);
-
-  const moriarty = others.find(p => (p.name || '').toLowerCase().includes('moriarty'));
-  const watson = others.find(p => (p.name || '').toLowerCase().includes('watson'));
-  const irene = others.find(p => (p.name || '').toLowerCase().includes('irene'));
-  const lestrade = others.find(p => (p.name || '').toLowerCase().includes('lestrade'));
-  const mycroft = others.find(p => (p.name || '').toLowerCase().includes('mycroft'));
-  const adler = others.find(p => (p.name || '').toLowerCase().includes('adler'));
-
-  if (moriarty && watson) {
-    const arranged = [];
-    const used = new Set();
-    const add = (p) => { if (p && !used.has(p.id)) { arranged.push(p); used.add(p.id); } };
-
-    // Row 1 (top 2 cups)
-    add(moriarty);
-    add(watson);
-
-    // Row 2 (middle 3 cups: Irene, Player, Lestrade)
-    add(irene);
-    add(me);
-    add(lestrade);
-
-    // Row 3 (bottom 2 cups: Mycroft, Adler)
-    add(mycroft);
-    add(adler);
-
-    for (const p of players) {
-      add(p);
-    }
-    return arranged;
-  }
-
-  const list = [...players];
-  if (me && list.length >= 3) {
-    const meIdx = list.findIndex(p => p.id === myPlayerId);
-    if (meIdx !== -1) {
-      list.splice(meIdx, 1);
-      const targetPos = Math.min(3, list.length);
-      list.splice(targetPos, 0, me);
-    }
-  }
-  return list;
-}
-
-function renderCupsTable232(playersList, isPhase3 = false) {
-  const L = getL();
-  const arranged = arrangePlayersFor232Table(playersList);
-  
-  let row1 = [];
-  let row2 = [];
-  let row3 = [];
-
-  if (arranged.length >= 7) {
-    row1 = arranged.slice(0, 2);
-    row2 = arranged.slice(2, 5);
-    row3 = arranged.slice(5, 7);
-  } else if (arranged.length === 6) {
-    row1 = arranged.slice(0, 2);
-    row2 = arranged.slice(2, 4);
-    row3 = arranged.slice(4, 6);
-  } else if (arranged.length === 5) {
-    row1 = arranged.slice(0, 2);
-    row2 = arranged.slice(2, 5);
-  } else if (arranged.length === 4) {
-    row1 = arranged.slice(0, 2);
-    row2 = arranged.slice(2, 4);
-  } else {
-    row1 = arranged.slice(0, 2);
-    row2 = arranged.slice(2);
-  }
-
-  const renderCup = (p, idx) => {
-    const isMe = (p.id === myPlayerId);
-    const sugarsCount = p.roundSugars ? (p.roundSugars.total || 0) : 0;
-    const isTargetSelected = (!isPhase3 && selectedVerdict === 'SWAP' && selectedSwapTarget === p.id);
-    const palette = getPlayerCupPalette(p, idx);
-    const emblem = getPlayerEmblemNumber(p, idx);
-    const isBlindModifier = (!isPhase3 && currentRoom.currentModifier === 'BLIND_TASTING' && !isMe);
-
-    const displayName = isMe 
-      ? `${p.name || 'Sen'} ★` 
-      : `${p.isBot ? 'Bot ' : ''}${p.isBot ? p.name.replace(/^Bot\s*/i, '') : p.name}`;
-
-    let phase3BadgeHtml = '';
-    if (isPhase3) {
-      const isDead = !p.alive;
-      const isPill = !!p.autoPillUsed;
-      const drankClean = p.lastDrank && !isDead && !isPill;
-      const isDump = (p.verdict === 'DUMP');
-
-      if (p.swappedThisRound) {
-        phase3BadgeHtml += `
-          <div class="phase3-cup-badge swap">🔄 ${currentLang === 'tr' ? 'Takas Yaptı' : 'Swapped'}</div>
-        `;
-      }
-
-      if (isDead) {
-        phase3BadgeHtml += `
-          <div class="phase3-cup-badge dead">☠️ ${currentLang === 'tr' ? 'ELENDİ' : 'DEAD'}</div>
-        `;
-      } else if (isPill) {
-        phase3BadgeHtml += `
-          <div class="phase3-cup-badge pill">💊 -${p.pointsLostThisRound ?? 0} ${currentLang === 'tr' ? 'Panzehir' : 'Pill'}</div>
-        `;
-      } else if (drankClean) {
-        phase3BadgeHtml += `
-          <div class="phase3-cup-badge clean">☕ +${p.pointsEarnedThisRound || 0} ${currentLang === 'tr' ? 'Puan' : 'Pts'}</div>
-        `;
-      } else if (isDump) {
-        if (p.dumpedWasPoisoned) {
-          phase3BadgeHtml += `
-            <div class="phase3-cup-badge relief">🫗 ${currentLang === 'tr' ? 'KURTULDU!' : 'SAVED!'}</div>
-          `;
-        } else {
-          phase3BadgeHtml += `
-            <div class="phase3-cup-badge regret">🫗 ${currentLang === 'tr' ? 'DÖKTÜ (+0)' : 'DUMP (+0)'}</div>
-          `;
-        }
-      } else {
-        phase3BadgeHtml += `
-          <div class="phase3-cup-badge clean">☕ +${p.pointsEarnedThisRound || 0}</div>
-        `;
-      }
-    }
-
-    return `
-      <div class="cup-slot-item ${isMe ? 'is-me' : ''} ${isTargetSelected ? 'is-selected-target' : ''} ${isPhase3 && !p.alive ? 'cup-is-dead' : ''}" data-swap-target-id="${p.id}">
-        <div class="cup-player-nametag ${isMe ? 'is-you' : ''}">
-          ${displayName}
-        </div>
-        <div class="pixel-teacup">
-          ${renderColoredTeacup(palette, emblem)}
-        </div>
-        ${isPhase3 ? phase3BadgeHtml : `
-          <div class="neon-sugar-badge ${isMe ? 'my-sugar-badge' : ''}">
-            <span class="neon-sugar-num">${isBlindModifier ? '?' : sugarsCount}</span>
-          </div>
-        `}
-      </div>
-    `;
-  };
-
-  return `
-    <div class="cups-table-232">
-      ${row1.length > 0 ? `<div class="cups-row cups-row-2">${row1.map((p, i) => renderCup(p, i)).join('')}</div>` : ''}
-      ${row2.length > 0 ? `<div class="cups-row cups-row-3">${row2.map((p, i) => renderCup(p, i + row1.length)).join('')}</div>` : ''}
-      ${row3.length > 0 ? `<div class="cups-row cups-row-2">${row3.map((p, i) => renderCup(p, i + row1.length + row2.length)).join('')}</div>` : ''}
-    </div>
-  `;
-}
 
 function isAdminRoute() {
   return window.location.hash === '#admin' || 
@@ -860,36 +427,29 @@ function listenToRoom(roomCode) {
 function renderCurrentScreen() {
   if (!currentRoom) {
     renderHome();
-    renderAuditorWidget();
     return;
   }
 
   const me = currentRoom.players[myPlayerId];
   if (!me) {
     renderHome();
-    renderAuditorWidget();
     return;
   }
 
   if (currentRoom.status === 'LOBBY') {
     lastSeenRound = 0;
-    hasDismissedPoisonCinematic = false;
-    hasDismissedModifierModal = false;
     renderLobby();
-    renderAuditorWidget();
     return;
   }
 
   if (currentRoom.status === 'GAME_OVER') {
     renderGameOver();
-    renderAuditorWidget();
     return;
   }
 
   // Dead players see the spectator screen during active phases (PHASE_1, PHASE_2)
   if (!me.alive && currentRoom.status !== 'PHASE_3') {
     renderSpectatorScreen();
-    renderAuditorWidget();
     return;
   }
 
@@ -901,22 +461,12 @@ function renderCurrentScreen() {
         selectedDropTarget = null;
         selectedVerdict = null;
         selectedSwapTarget = null;
-        hasDismissedPoisonCinematic = false;
-        hasDismissedModifierModal = false;
       }
       hasPlayedPhase3Sound = false;
-      if (currentRoom.currentModifier && !hasDismissedModifierModal) {
-        renderRoundModifierScreen();
-      } else {
-        renderPhase1();
-      }
+      renderPhase1();
       break;
     case 'PHASE_2':
-      if (currentRoom.currentModifier && !hasDismissedModifierModal) {
-        renderRoundModifierScreen();
-      } else {
-        renderPhase2();
-      }
+      renderPhase2();
       break;
     case 'PHASE_3':
       renderPhase3();
@@ -924,149 +474,59 @@ function renderCurrentScreen() {
     default:
       renderHome();
   }
-  renderAuditorWidget();
 }
 
 // -------------------------------------------------------------------
-// 1. HOME SCREEN (16-BIT VICTORIAN PARLOR RETRO PIXEL ART)
+// 1. HOME SCREEN
 // -------------------------------------------------------------------
 function renderHome() {
   const L = getL();
   appEl.innerHTML = `
-    <div class="home-container">
-      <div class="home-top-bar">
-        <div class="home-top-decor">
-          <span class="pixel-star">✦</span>
-          <span>VICTORIAN PARLOR</span>
-          <span class="pixel-star">✦</span>
-        </div>
-        ${renderLangToggle()}
-      </div>
+    <div style="display:flex; justify-content:flex-end; width:100%; margin-bottom:4px;">
+      ${renderLangToggle()}
+    </div>
 
-      <div class="home-hero">
-        <div class="home-hero-frame">
-          <div class="home-corner tl">${ICONS.filigreeCorner}</div>
-          <div class="home-corner tr">${ICONS.filigreeCorner}</div>
-          <div class="home-corner bl">${ICONS.filigreeCorner}</div>
-          <div class="home-corner br">${ICONS.filigreeCorner}</div>
+    <div class="hero-art">
+      ${ICONS.teacup}
+      <h1 class="brand-title" style="font-size:1.8rem; margin-top:14px;">${L.title}</h1>
+      <p style="color:var(--text-muted); font-size:0.85rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-top:4px;">
+        ${L.subtitle}
+      </p>
+    </div>
 
-          <div class="home-hero-teacup">
-            ${renderColoredTeacup('gold')}
-          </div>
-          <h1 class="home-title">${L.title}</h1>
-          <div class="home-title-divider">
-            <span class="divider-gem">◆</span>
-            <span class="divider-line"></span>
-            <span class="divider-gem">◆</span>
-          </div>
-          <p class="home-subtitle">${L.subtitle}</p>
-        </div>
+    <div class="card" style="margin-top:10px;">
+      <div class="input-group">
+        <label class="input-label">${L.yourName}</label>
+        <input type="text" id="hostName" class="input-field" placeholder="${L.namePlaceholderHost}" maxlength="14">
       </div>
+      <button class="btn btn-primary" id="btnCreate">
+        ${L.createRoom}
+      </button>
+    </div>
 
-      <!-- Quick Rules Banner -->
-      <div class="home-pixel-card rules-card" style="border-color:#5a3861; padding:10px 12px; background:#1b0c1e; margin-bottom:4px;">
-        <div style="display:flex; align-items:center; gap:6px; font-family:var(--font-pixel-heading); font-size:0.7rem; color:#ffd866;">
-          <span>📜</span>
-          <span>${currentLang === 'tr' ? 'VİKTORYA SALONU PROTOKOLÜ' : 'VICTORIAN PARLOR PROTOCOL'}</span>
-        </div>
-        <p style="font-family:var(--font-pixel-ui); font-size:0.74rem; color:#baa4bd; line-height:1.35; margin-top:4px;">
-          ${currentLang === 'tr'
-            ? 'Gizlice fincanlara şeker veya siyanür at. Çayını İÇ, DÖK ya da TAKAS ET! Temiz çay içen puan toplar, zehri içen panzehir yoksa elenir.'
-            : 'Secretly drop sweet sugar or cyanide into teacups. DRINK, DUMP, or SWAP! Clean tea earns sugar points; poison eliminates without an antidote.'}
-        </p>
+    <div class="card">
+      <div class="input-group">
+        <label class="input-label">${L.roomCodeLabel}</label>
+        <input type="text" id="joinCode" class="input-field" placeholder="KOD" maxlength="4" style="text-transform:uppercase; letter-spacing:4px; font-weight:900;">
       </div>
+      <div class="input-group">
+        <label class="input-label">${L.yourName}</label>
+        <input type="text" id="joinName" class="input-field" placeholder="${L.namePlaceholderJoin}" maxlength="14">
+      </div>
+      <button class="btn btn-neutral" id="btnJoin">
+        ${L.joinRoom}
+      </button>
+    </div>
 
-      <!-- Card 1: Create Table -->
-      <div class="home-pixel-card host-card">
-        <div class="home-card-banner">
-          <span class="card-badge-icon">☕</span>
-          <span class="card-badge-title">${L.createCardTitle}</span>
-        </div>
-        <p class="home-card-desc">
-          ${L.createCardSub}
-        </p>
-        <div class="home-field-group">
-          <label class="home-input-label">
-            <span>👤</span> ${L.yourName}
-          </label>
-          <input type="text" id="hostName" class="home-input" placeholder="${L.namePlaceholderHost}" maxlength="18" autocomplete="off">
-        </div>
-        <button class="home-btn-primary" id="btnCreate">
-          ${L.createRoomBtn}
-        </button>
-      </div>
-
-      <!-- Card 2: Join Table -->
-      <div class="home-pixel-card join-card">
-        <div class="home-card-banner">
-          <span class="card-badge-icon">🚪</span>
-          <span class="card-badge-title">${L.joinCardTitle}</span>
-        </div>
-        <p class="home-card-desc">
-          ${L.joinCardSub}
-        </p>
-        <div class="home-field-group">
-          <label class="home-input-label">
-            <span>🗝️</span> ${L.roomCodeLabel}
-          </label>
-          <input type="text" id="joinCode" class="home-input code-input" placeholder="ABCD" maxlength="4" autocomplete="off">
-        </div>
-        <div class="home-field-group">
-          <label class="home-input-label">
-            <span>👤</span> ${L.yourName}
-          </label>
-          <input type="text" id="joinName" class="home-input" placeholder="${L.namePlaceholderJoin}" maxlength="18" autocomplete="off">
-        </div>
-        <button class="home-btn-neutral" id="btnJoin">
-          ${L.joinRoomBtn}
-        </button>
-      </div>
-
-      <!-- Footer Links: Admin, Auditor & Sprite Maker -->
-      <div class="home-footer-nav">
-        <a href="#admin" id="btnAdminLink" class="home-admin-badge">
-          <span>🛠️</span> ${L.adminPanel}
-        </a>
-        <button id="btnHomeAuditorLink" class="home-auditor-link">
-          <span>🕵️</span> ${currentLang === 'tr' ? 'Denetçi Agent' : 'Auditor Agent'}
-        </button>
-        <a href="/sprite-maker.html" target="_blank" class="home-admin-badge" style="border-color:#e6b843; color:#fbe69e;">
-          <span>🎨</span> Sprite Studio
-        </a>
-      </div>
+    <!-- Admin Panel Quick Access Link -->
+    <div style="margin-top:16px; text-align:center;">
+      <a href="#admin" id="btnAdminLink" style="font-size:0.78rem; font-weight:800; color:var(--text-muted); text-decoration:none; display:inline-flex; align-items:center; gap:6px; padding:6px 14px; background:var(--bg-card); border:1.5px solid var(--border-subtle); border-radius:20px; box-shadow:0 1.5px 0 var(--border-subtle); cursor:pointer;">
+        ${L.adminPanel}
+      </a>
     </div>
   `;
 
   attachLangEvents();
-
-  // Enter key support for inputs
-  const hostInput = document.getElementById('hostName');
-  if (hostInput) {
-    hostInput.onkeydown = (e) => {
-      if (e.key === 'Enter') document.getElementById('btnCreate').click();
-    };
-  }
-
-  const joinCodeInput = document.getElementById('joinCode');
-  const joinNameInput = document.getElementById('joinName');
-  if (joinCodeInput) {
-    joinCodeInput.onkeydown = (e) => {
-      if (e.key === 'Enter' && joinNameInput) joinNameInput.focus();
-    };
-  }
-  if (joinNameInput) {
-    joinNameInput.onkeydown = (e) => {
-      if (e.key === 'Enter') document.getElementById('btnJoin').click();
-    };
-  }
-
-  const auditorLink = document.getElementById('btnHomeAuditorLink');
-  if (auditorLink) {
-    auditorLink.onclick = () => {
-      isAuditorOpen = true;
-      renderAuditorWidget();
-    };
-  }
 
   document.getElementById('btnCreate').onclick = async () => {
     const name = document.getElementById('hostName').value.trim();
@@ -1106,7 +566,7 @@ function renderHome() {
 }
 
 // -------------------------------------------------------------------
-// 2. LOBBY SCREEN (VICTORIAN PARLOR REGISTRY & SEAT ROSTER)
+// 2. LOBBY SCREEN
 // -------------------------------------------------------------------
 function renderLobby() {
   const L = getL();
@@ -1114,172 +574,76 @@ function renderLobby() {
   const players = Object.values(currentRoom.players || {});
   const canStart = players.length >= 2;
 
-  const playerRows = players.map((p, idx) => {
-    const palette = getPlayerCupPalette(p, idx);
-    const emblem = getPlayerEmblemNumber(p, idx);
-    const isMe = (p.id === myPlayerId);
-
-    return `
-      <div class="lobby-seat-row ${isMe ? 'is-me' : ''}">
-        <div class="seat-cup-preview">
-          ${renderColoredTeacup(palette, emblem)}
-        </div>
-        <div class="seat-info">
-          <div class="seat-player-name" title="${p.name}">
-            ${p.name}
-            ${isMe ? `<span class="seat-you-tag">${L.you}</span>` : ''}
-          </div>
-          <div class="seat-badges">
-            ${p.isHost ? `<span class="badge-seat-host">👑 ${L.host}</span>` : (p.isBot ? `<span class="badge-seat-bot">🤖 BOT</span>` : `<span class="badge-seat-player">👤 KONUK</span>`)}
-          </div>
-        </div>
-        <div class="seat-status-right">
-          <span class="badge-seat-ready">✓ ${L.ready}</span>
-          ${me.isHost && !isMe ? `
-            <button class="btn-seat-kick btn-kick" data-kick="${p.id}" title="${L.kickBtn}">
-              ✕ ${L.kickBtn}
-            </button>
-          ` : ''}
-        </div>
+  const playerRows = players.map(p => `
+    <div class="player-row" style="display:flex; justify-content:space-between; align-items:center;">
+      <span style="display:flex; align-items:center; gap:6px;">
+        ${p.name}
+        ${p.isBot ? `<span class="tag-badge" style="background:#e8f0fe; color:#1a73e8; border-color:#1a73e8; font-size:0.65rem;">🤖 BOT</span>` : ''}
+        ${p.id === myPlayerId ? `<span style="color:var(--text-muted); font-size:0.8rem;">${L.you}</span>` : ''}
+      </span>
+      <div style="display:flex; align-items:center; gap:8px;">
+        ${p.isHost ? `<span class="tag-badge">${L.host}</span>` : `<span class="tag-badge" style="background:#e8f4ed; color:#1e5e39;">${L.ready}</span>`}
+        ${me.isHost && p.id !== myPlayerId ? `
+          <button class="btn-kick" data-kick="${p.id}" style="background:#fdf2f2; border:1.5px solid #d9534f; color:#d9534f; border-radius:6px; font-weight:800; font-size:0.75rem; padding:4px 8px; cursor:pointer;">
+            ${L.kickBtn}
+          </button>
+        ` : ''}
       </div>
-    `;
-  }).join('');
+    </div>
+  `).join('');
 
   appEl.innerHTML = `
     <div class="app-header">
-      <div class="brand-title">
-        <span class="brand-crest">☕</span>
-        <span>${L.title}</span>
-      </div>
+      <div class="brand-title">${L.title}</div>
       ${renderLangToggle()}
     </div>
 
-    <!-- Victorian Room Code Plaque -->
-    <div class="lobby-code-plaque">
-      <div class="plaque-corner tl">${ICONS.filigreeCorner}</div>
-      <div class="plaque-corner tr">${ICONS.filigreeCorner}</div>
-      <div class="plaque-corner bl">${ICONS.filigreeCorner}</div>
-      <div class="plaque-corner br">${ICONS.filigreeCorner}</div>
-
-      <span class="plaque-sub">${currentLang === 'tr' ? 'SALON ODA PROTOKOLÜ' : 'PARLOR ROOM PROTOCOL'}</span>
-      <div class="plaque-code-display">
+    <div class="card" style="text-align:center; padding:22px 14px;">
+      <span class="input-label" style="margin-bottom:2px;">${L.roomCodeTitle}</span>
+      <h2 style="font-size:3rem; font-weight:900; letter-spacing:6px; color:var(--text-main); font-family:monospace; margin:4px 0;">
         ${currentRoom.code}
-      </div>
-      <button class="btn-copy-code" id="btnCopyRoomCode" title="${currentLang === 'tr' ? 'Oda Kodunu Kopyala' : 'Copy Room Code'}">
-        📋 ${currentLang === 'tr' ? 'ODA KODUNU KOPYALA' : 'COPY CODE'}
-      </button>
-      <div class="plaque-count-badge">
-        <span class="count-dot">●</span>
-        <span>${L.playersAtTable(players.length)} (Maks: 8)</span>
-      </div>
+      </h2>
+      <p style="font-size:0.85rem; font-weight:700; color:var(--text-muted);">
+        ${L.playersAtTable(players.length)}
+      </p>
     </div>
 
-    <!-- Victorian Seat Registry -->
-    <div class="lobby-roster-card">
-      <div class="lobby-roster-header">
-        <span class="roster-header-title">📜 ${L.playersList}</span>
-        <span class="roster-header-count">${players.length}/8</span>
-      </div>
-
-      <div class="lobby-seat-list">
+    <div class="card">
+      <span class="input-label">${L.playersList}</span>
+      <div style="margin-top:8px;">
         ${playerRows}
       </div>
-
       ${me.isHost ? `
-        <div class="lobby-bot-actions-row">
-          <button class="btn-lobby-bot-add" id="btnAddBot">
-            <span>🤖</span>
-            <span>${L.addBot}</span>
-          </button>
-          <button class="btn-lobby-fill7" id="btnAddQuick7">
-            <span>⚔️</span>
-            <span>${currentLang === 'tr' ? '7 KİŞİLİK MASA DOLDUR (6 BOT)' : 'FILL 7-SEAT TABLE (6 BOTS)'}</span>
-          </button>
-        </div>
+        <button class="btn btn-neutral" id="btnAddBot" style="margin-top:10px; width:100%; border:2px dashed var(--btn-brass); color:var(--btn-espresso); font-weight:800; display:flex; align-items:center; justify-content:center; gap:8px;">
+          ${L.addBot}
+        </button>
       ` : ''}
     </div>
 
-    <!-- Lobby Footer & Host Controls -->
-    <div class="lobby-footer-actions">
+    <div style="margin-top:auto; padding-top:12px;">
       ${me.isHost ? `
-        <button class="btn-start-game-prominent ${!canStart ? 'btn-disabled' : ''}" id="btnStartGame" ${!canStart ? 'disabled' : ''}>
-          <span>⚔️</span>
-          <span>${L.startGame(players.length)}</span>
+        <button class="btn btn-primary ${!canStart ? 'btn-disabled' : ''}" id="btnStartGame" ${!canStart ? 'disabled' : ''}>
+          ${L.startGame(players.length)}
         </button>
       ` : `
-        <div class="lobby-guest-waiting">
-          <div class="waiting-steam-teacup">${renderColoredTeacup(getPlayerCupPalette(me, 0), '☕')}</div>
-          <div class="waiting-text">${L.waitingHost}</div>
+        <div style="text-align:center; color:var(--text-muted); font-weight:700; padding:16px;">
+          ${L.waitingHost}
         </div>
       `}
-      <button class="btn-lobby-leave" id="btnLeave">
-        🚪 ${L.leave}
+      <button class="btn btn-neutral" id="btnLeave" style="margin-top:10px; border-color:transparent; color:#888;">
+        ${L.leave}
       </button>
     </div>
   `;
 
   attachLangEvents();
 
-  const btnCopy = document.getElementById('btnCopyRoomCode');
-  if (btnCopy) {
-    btnCopy.onclick = async () => {
-      try {
-        await navigator.clipboard.writeText(currentRoom.code);
-        const prevText = btnCopy.innerHTML;
-        btnCopy.innerHTML = `✓ ${currentLang === 'tr' ? 'KOPYALANDI!' : 'COPIED!'}`;
-        btnCopy.style.borderColor = '#2ecc71';
-        btnCopy.style.color = '#2ecc71';
-        setTimeout(() => {
-          if (btnCopy) {
-            btnCopy.innerHTML = prevText;
-            btnCopy.style.borderColor = '';
-            btnCopy.style.color = '';
-          }
-        }, 2000);
-      } catch (e) {
-        prompt(currentLang === 'tr' ? 'Oda Kodu:' : 'Room Code:', currentRoom.code);
-      }
-    };
-  }
-
   if (me.isHost) {
     const btnAddBot = document.getElementById('btnAddBot');
     if (btnAddBot) {
       btnAddBot.onclick = async () => {
         try {
-          const res = await addBot(currentRoom.code);
-          auditorAgent.logEvent({
-            round: 0,
-            phase: 'LOBBY',
-            actor: res.botName,
-            event: 'Bot Masaya Katıldı',
-            uxMetric: 'PASS',
-            critiqueNote: `${res.botName} başarıyla salona dahil oldu.`
-          });
-        } catch (err) {
-          alert(err.message);
-        }
-      };
-    }
-
-    const btnAddQuick7 = document.getElementById('btnAddQuick7');
-    if (btnAddQuick7) {
-      btnAddQuick7.onclick = async () => {
-        try {
-          const room = await DB.get(`rooms/${currentRoom.code}`);
-          const currentCount = Object.keys(room.players || {}).length;
-          for (let i = currentCount; i < 7; i++) {
-            await addBot(currentRoom.code);
-            await new Promise(r => setTimeout(r, 200));
-          }
-          auditorAgent.logEvent({
-            round: 0,
-            phase: 'LOBBY',
-            actor: 'Host',
-            event: '7 Kişilik Masa Dolduruldu',
-            uxMetric: 'PASS',
-            critiqueNote: 'Masa 7 oyuncuyla tamamlandı. 2-3-2 düzeni için hazır.'
-          });
+          await addBot(currentRoom.code);
         } catch (err) {
           alert(err.message);
         }
@@ -1319,62 +683,34 @@ function renderLobby() {
 }
 
 // -------------------------------------------------------------------
-// HELPER: RENDER PIXEL TOP INVENTORY & STATUS BAR (Matching Ref)
+// HELPER: RENDER 4-COLUMN INVENTORY BAR (Score, Pill, Cyanide, Swap)
 // -------------------------------------------------------------------
-function renderInventoryBar(me, L, isCompact = false) {
+function renderInventoryBar(me, L) {
   const swapsLeft = me.swapsLeft ?? 1;
-  const score = me.points || 0;
-  const pillCount = me.pill || 0;
-  const cyanideCount = me.cyanide || 0;
-
-  // Render 5 score stars
-  let starsHtml = '';
-  for (let i = 1; i <= 5; i++) {
-    if (i <= score) {
-      starsHtml += `<span class="star-filled">★</span>`;
-    } else {
-      starsHtml += `<span class="star-empty">★</span>`;
-    }
-  }
-
   return `
-    <div class="inventory-pixel-bar ${isCompact ? 'is-compact' : ''}">
-      <div class="inv-item-group">
-        <!-- Pill Slot -->
-        <div class="inv-slot">
-          <div class="inv-icon-wrapper">
-            ${ICONS.pillPixel}
-            <span class="inv-count-badge">${pillCount}</span>
-          </div>
-          <span class="inv-slot-label">${currentLang === 'tr' ? 'Panzehir' : 'Pill'}</span>
-        </div>
-
-        <!-- Cyanide Slot -->
-        <div class="inv-slot">
-          <div class="inv-icon-wrapper">
-            ${ICONS.poisonPixel}
-            <span class="inv-count-badge">${cyanideCount}</span>
-          </div>
-          <span class="inv-slot-label">${currentLang === 'tr' ? 'Siyanür' : 'Cyanide'}</span>
-        </div>
-
-        <!-- Swap Slot -->
-        <div class="inv-slot">
-          <div class="inv-icon-wrapper">
-            ${ICONS.swapPixel}
-            <span class="inv-count-badge">${swapsLeft}</span>
-          </div>
-          <span class="inv-slot-label">${currentLang === 'tr' ? 'Takas' : 'Swap'}</span>
+    <div class="inventory-grid">
+      <div class="inv-box">
+        <div class="inv-box-label">${L.scoreLabel}</div>
+        <div class="inv-box-val" style="color:var(--btn-brass);">
+          ${L.scoreVal(me.points || 0)}
         </div>
       </div>
-
-      <!-- Score Stars Section -->
-      <div class="score-stars-group">
-        <div class="stars-row">
-          ${starsHtml}
+      <div class="inv-box">
+        <div class="inv-box-label">${L.pillLabel}</div>
+        <div class="inv-box-val" style="color:${(me.pill || 0) > 0 ? 'var(--btn-poison)' : '#aaa'};">
+          ${L.pillVal(me.pill || 0)}
         </div>
-        <div class="score-text-label">
-          Score: ${score}/8
+      </div>
+      <div class="inv-box">
+        <div class="inv-box-label">${L.cyanideLabel}</div>
+        <div class="inv-box-val" style="color:${(me.cyanide || 0) > 0 ? 'var(--btn-crimson)' : '#aaa'};">
+          ${L.cyanideVal(me.cyanide || 0)}
+        </div>
+      </div>
+      <div class="inv-box">
+        <div class="inv-box-label">${L.swapLabel}</div>
+        <div class="inv-box-val" style="color:${swapsLeft > 0 ? 'var(--btn-espresso)' : '#aaa'};">
+          ${L.swapVal(swapsLeft)}
         </div>
       </div>
     </div>
@@ -1468,67 +804,60 @@ function renderPhase1() {
   const me = currentRoom.players[myPlayerId];
   const alivePlayers = Object.values(currentRoom.players).filter(p => p.alive);
   const otherAlive = alivePlayers.filter(p => p.id !== myPlayerId);
-  const allSelectableTargets = [me, ...otherAlive];
   const readyCount = alivePlayers.filter(p => p.ready).length;
   const hasCyanide = (me.cyanide || 0) > 0;
 
-  // Ensure selectedDropTarget is valid (cannot be self if SWEET)
-  if (selectedDropType === 'SWEET' && selectedDropTarget === myPlayerId) {
-    selectedDropTarget = otherAlive.length > 0 ? otherAlive[0].id : null;
-  } else if (!selectedDropTarget || !alivePlayers.some(p => p.id === selectedDropTarget)) {
-    selectedDropTarget = otherAlive.length > 0 ? otherAlive[0].id : myPlayerId;
+  // Ensure selectedDropTarget is valid
+  if (selectedDropType === 'SWEET') {
+    if (!selectedDropTarget || selectedDropTarget === myPlayerId || !otherAlive.some(p => p.id === selectedDropTarget)) {
+      selectedDropTarget = otherAlive.length > 0 ? otherAlive[0].id : null;
+    }
+  } else {
+    if (!selectedDropTarget || !alivePlayers.some(p => p.id === selectedDropTarget)) {
+      selectedDropTarget = otherAlive.length > 0 ? otherAlive[0].id : myPlayerId;
+    }
   }
 
-  const targetPlayer = alivePlayers.find(p => p.id === selectedDropTarget);
-  const isTargetSelf = (selectedDropTarget === myPlayerId);
-  const targetPlayerName = targetPlayer ? (isTargetSelf ? (currentLang === 'tr' ? 'Kendi Fincanın' : 'Your Cup') : targetPlayer.name) : '';
-
-  // Build Target Selection Cards (3-Column Grid, including Self Cup)
-  const targetCardsHtml = allSelectableTargets.map((p, idx) => {
-    const isSelf = (p.id === myPlayerId);
-    const isSelfSweetDisabled = isSelf && (selectedDropType === 'SWEET');
-    const isSelected = (selectedDropTarget === p.id && !isSelfSweetDisabled);
-    const palette = getPlayerCupPalette(p, idx);
-    const cardTitle = isSelf 
-      ? (currentLang === 'tr' ? '⭐ KENDİ FİNCANIN' : '⭐ YOUR CUP') 
-      : (p.isBot ? `🤖 ${p.name}` : p.name);
-
-    return `
-      <div class="player-target-card-3col ${isSelected ? 'selected' : ''} ${isSelf ? 'self-target-card' : ''} ${isSelfSweetDisabled ? 'disabled-self-sweet' : ''}" data-target-id="${p.id}">
-        ${isSelected ? '<span class="target-check-badge">✓</span>' : ''}
-        ${isSelf ? (isSelfSweetDisabled 
-            ? `<span class="target-self-badge disabled" title="${currentLang === 'tr' ? 'Şeker sadece rakiplere ikram edilir' : 'Sugar must be offered to opponents'}">⛔ İKRAM ET</span>` 
-            : `<span class="target-self-badge">💣 TUZAK / BLÖF</span>`) 
-          : ''}
-        <div class="target-cup-container">
-          ${renderColoredTeacup(palette, (idx + 1).toString())}
+  // Build Opponent Target Selection Cards
+  let targetCardsHtml = '';
+  if (selectedDropType === 'SWEET') {
+    // Gifting sweet sugar reloads cyanide (cannot target self)!
+    targetCardsHtml = otherAlive.map(p => {
+      const isSelected = (selectedDropTarget === p.id);
+      return `
+        <div class="player-target-card ${isSelected ? 'selected' : ''}" data-target-id="${p.id}">
+          ${isSelected ? '<span class="target-check">✓</span>' : ''}
+          <div style="font-size:1.6rem; margin-bottom:2px;">🎁</div>
+          <div style="font-weight:900; font-size:0.85rem; color:var(--text-main);">${p.isBot ? '🤖 ' : ''}${p.name}</div>
+          <div style="font-size:0.7rem; font-weight:800; color:var(--btn-poison); margin-top:3px;">
+            ${L.targetOpponentSweetSub}
+          </div>
+          <div style="font-size:0.65rem; color:var(--text-muted); font-weight:700; margin-top:2px;">
+            ${p.points || 0}/5 🍬
+          </div>
         </div>
-        <div class="target-card-player-name" title="${cardTitle}">
-          ${cardTitle}
-        </div>
-        <div class="target-card-score-box">
-          <span class="score-val">${p.points || 0}</span><span class="score-max">/8</span> <span class="score-icon">🍬</span>
-        </div>
-      </div>
-    `;
-  }).join('');
-
-  // Contextual Action Button Text
-  let confirmBtnText = '';
-  if (isTargetSelf) {
-    confirmBtnText = currentLang === 'tr' 
-      ? '💣 KARARIMI ONAYLA: KENDİ FİNCANINA SİYANÜR KOY (Tuzak / Truva Blöfü)' 
-      : '💣 CONFIRM: POISON OWN CUP (Trap / Trojan Bluff)';
+      `;
+    }).join('');
   } else {
-    if (selectedDropType === 'CYANIDE') {
-      confirmBtnText = currentLang === 'tr' 
-        ? `☠️ KARARIMI ONAYLA: ${targetPlayerName}'A ZEHİR AT` 
-        : `☠️ CONFIRM: POISON ${targetPlayerName}'S TEA`;
-    } else {
-      confirmBtnText = currentLang === 'tr' 
-        ? `🍬 KARARIMI ONAYLA: ${targetPlayerName}'A ŞEKER İKRAM ET (+1 Siyanür Stoğu)` 
-        : `🍬 CONFIRM: OFFER SUGAR TO ${targetPlayerName} (+1 Cyanide Reload)`;
-    }
+    // CYANIDE: Can target opponents for assassination (+2 Kill Bounty) OR self cup for Trojan bluff!
+    const targets = [me, ...otherAlive];
+    targetCardsHtml = targets.map(p => {
+      const isSelf = (p.id === myPlayerId);
+      const isSelected = (selectedDropTarget === p.id);
+      return `
+        <div class="player-target-card ${isSelected ? 'selected' : ''} ${isSelf ? 'is-self' : ''}" data-target-id="${p.id}">
+          ${isSelected ? '<span class="target-check">✓</span>' : ''}
+          <div style="font-size:1.6rem; margin-bottom:2px;">${isSelf ? '⭐' : '☠️'}</div>
+          <div style="font-weight:900; font-size:0.85rem; color:var(--text-main);">${isSelf ? (currentLang === 'tr' ? 'Kendi Fincanın' : 'Your Cup') : (p.isBot ? '🤖 ' : '') + p.name}</div>
+          <div style="font-size:0.7rem; font-weight:800; color:${isSelf ? 'var(--btn-brass)' : 'var(--btn-crimson)'}; margin-top:3px;">
+            ${isSelf ? (currentLang === 'tr' ? 'Truva Blöfü 🐴' : 'Trojan Bluff 🐴') : L.targetOpponentCyanideSub}
+          </div>
+          <div style="font-size:0.65rem; color:var(--text-muted); font-weight:700; margin-top:2px;">
+            ${p.points || 0}/5 🍬
+          </div>
+        </div>
+      `;
+    }).join('');
   }
 
   appEl.innerHTML = `
@@ -1542,72 +871,50 @@ function renderPhase1() {
 
     ${renderInventoryBar(me, L)}
 
-    ${renderParlorEmotesBar()}
+    <!-- Phase 1 Action Card -->
+    <div class="card">
+      <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+        <span style="font-size:1.2rem;">🍬</span>
+        <span class="input-label" style="margin:0; color:var(--btn-espresso);">${L.phase1Title}</span>
+      </div>
+      <p style="font-size:0.82rem; color:var(--text-muted); font-weight:600; margin-bottom:14px; line-height:1.4;">
+        ${L.phase1Desc}
+      </p>
 
-    <div class="card" style="margin-top:6px; padding:12px 10px;">
-      <!-- Sugar / Poison Selector -->
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
-        <button class="btn ${selectedDropType === 'SWEET' ? 'btn-primary' : 'btn-neutral'}" id="btnDropSweet" style="padding:10px 6px; font-size:0.85rem; font-weight:800;">
+      <!-- Sugar Type Select Buttons -->
+      <div class="grid-2">
+        <button class="btn btn-neutral ${selectedDropType === 'SWEET' ? 'selected' : ''}" id="btnDropSweet">
           ${L.dropSweetBtn}
         </button>
-        <button class="btn ${selectedDropType === 'CYANIDE' ? 'btn-danger' : 'btn-neutral'} ${!hasCyanide ? 'btn-disabled' : ''}" id="btnDropCyanide" ${!hasCyanide ? 'disabled' : ''} style="padding:10px 6px; font-size:0.85rem; font-weight:800;">
+        <button class="btn btn-neutral ${selectedDropType === 'CYANIDE' ? 'selected' : ''} ${!hasCyanide ? 'btn-disabled' : ''}" id="btnDropCyanide" ${!hasCyanide ? 'disabled' : ''}>
           ${L.dropCyanideBtn(me.cyanide || 0)}
         </button>
       </div>
 
-      <!-- Target Opponent Selection (3-col Grid) -->
-      <div>
-        <label class="input-label" style="text-align:center; display:block; margin-bottom:6px; font-size:0.8rem;">
-          ${isTargetSelf && selectedDropType === 'CYANIDE' 
-            ? (currentLang === 'tr' ? '⚠️ Kendi fincanına tuzak kuruyorsun! 2. adımda bu fincanı başkasına iteleyebilir veya dökebilirsin.' : '⚠️ You are trapping your own cup! You can swap it or dump it in step 2.')
-            : L.targetLabel}
-        </label>
-        <div class="player-target-grid-3col">
+      <!-- Target Player Cards Grid -->
+      <div style="margin-top:10px;">
+        <label class="input-label">${L.targetLabel}</label>
+        <div class="player-select-grid">
           ${targetCardsHtml}
+        </div>
+        <div style="margin-top:10px; font-size:0.75rem; color:var(--text-muted); text-align:center; font-weight:700; line-height:1.35;">
+          ${selectedDropType === 'SWEET' ? L.hintSweetOpponent : L.hintCyanide}
         </div>
       </div>
     </div>
 
-    <div style="margin-top:auto; padding-top:10px; display:flex; flex-direction:column; gap:8px;">
-      ${!me.ready ? `
-        <button class="btn btn-primary btn-confirm-action" id="btnSubmitPhase1" style="padding:14px 10px; font-size:0.82rem; font-weight:900;">
-          ${confirmBtnText}
-        </button>
-      ` : `
-        <div class="phase-decision-locked-banner">
-          <span class="locked-icon">✓</span>
-          <div class="locked-details">
-            <div class="locked-title">${currentLang === 'tr' 
-              ? `KARARIN KİLİTLENDİ: ${targetPlayerName}'A ${selectedDropType === 'CYANIDE' ? 'ZEHİR' : 'ŞEKER'} ATTIN` 
-              : `DECISION LOCKED: ${selectedDropType} ➔ ${targetPlayerName}`}</div>
-            <div class="locked-sub">${L.waitingOthers(readyCount, alivePlayers.length)}</div>
-          </div>
-        </div>
-      `}
-
-      <!-- Dedicated Host Phase 1 Advance Control -->
-      ${me.isHost ? `
-        <div class="host-phase-advance-panel">
-          <div class="host-panel-header">👑 ${currentLang === 'tr' ? 'SALON KURUCUSU KONTROLÜ' : 'HOST PARLOR CONTROLS'}</div>
-          <button class="btn-host-advance" id="btnHostAdvancePhase1">
-            ${currentLang === 'tr' ? '➡️ 2. ADIMA GEÇ (Tüm Masayı İlerlet)' : '➡️ PROCEED TO STEP 2 (Advance Table)'}
-          </button>
-          <div class="host-panel-hint">
-            ${readyCount === alivePlayers.length 
-              ? (currentLang === 'tr' ? '✓ Masadaki herkes hazır! 2. adıma geçebilirsiniz.' : '✓ All players ready! You may advance.')
-              : (currentLang === 'tr' ? '⏳ Bazı oyuncular düşünüyor. Kurucu olarak masayı erken ilerletebilirsiniz.' : '⏳ Some players still deciding. You may advance early.')}
-          </div>
-        </div>
-      ` : ''}
+    <div style="margin-top:auto; padding-top:10px;">
+      <button class="btn btn-primary ${me.ready ? 'btn-disabled' : ''}" id="btnSubmitPhase1" ${me.ready ? 'disabled' : ''}>
+        ${me.ready ? `⏳ ${L.waitingOthers(readyCount, alivePlayers.length)}` : L.confirmAction}
+      </button>
     </div>
   `;
 
   attachLangEvents();
-  attachParlorEmoteEvents();
 
   document.getElementById('btnDropSweet').onclick = () => {
     selectedDropType = 'SWEET';
-    if (selectedDropTarget === myPlayerId) {
+    if (!selectedDropTarget || selectedDropTarget === myPlayerId) {
       selectedDropTarget = otherAlive.length > 0 ? otherAlive[0].id : null;
     }
     renderPhase1();
@@ -1621,146 +928,42 @@ function renderPhase1() {
     };
   }
 
-  // Attach card selection clicks (3-col cards)
-  document.querySelectorAll('.player-target-card-3col').forEach(card => {
+  // Attach card selection clicks
+  document.querySelectorAll('.player-target-card').forEach(card => {
     card.onclick = () => {
-      const tid = card.getAttribute('data-target-id');
-      if (tid === myPlayerId && selectedDropType === 'SWEET') {
-        alert(currentLang === 'tr' 
-          ? "Kendi fincanınıza tatlı şeker koyamazsınız! Şeker sadece rakiplere ikram edilebilir. Kendi fincanınıza yalnızca Siyanür (Tuzak / Truva Blöfü) koyabilirsiniz." 
-          : "You cannot sweeten your own cup! Sugar can only be offered to opponents. You may only place Cyanide in your own cup as a bluff/trap.");
-        return;
-      }
-      selectedDropTarget = tid;
+      selectedDropTarget = card.getAttribute('data-target-id');
       renderPhase1();
     };
   });
 
-  const btnSubmit = document.getElementById('btnSubmitPhase1');
-  if (btnSubmit) {
-    btnSubmit.onclick = async () => {
-      const target = selectedDropTarget;
-      if (!target) {
-        return alert(currentLang === 'tr' ? "Lütfen şekeri atmak istediğin fincanı seç!" : "Please choose whose cup to drop the sugar into!");
-      }
-
-      try {
-        if (selectedDropType === 'CYANIDE') {
-          playPoisonSound();
-        } else {
-          playSlideSound();
-        }
-        await submitDropAction(currentRoom.code, myPlayerId, {
-          type: selectedDropType,
-          target: target
-        });
-        auditorAgent.recordDecisionConfirmed(myPlayerId, me.name, `${selectedDropType} ➔ ${targetPlayerName}`, me.isHost);
-      } catch (e) {
-        alert(e.message);
-      }
-    };
-  }
-
-  if (me.isHost) {
-    const btnHostAdv = document.getElementById('btnHostAdvancePhase1');
-    if (btnHostAdv) {
-      btnHostAdv.onclick = async () => {
-        try {
-          if (!me.ready && selectedDropTarget) {
-            await submitDropAction(currentRoom.code, myPlayerId, {
-              type: selectedDropType,
-              target: selectedDropTarget
-            });
-            auditorAgent.recordDecisionConfirmed(myPlayerId, me.name, `${selectedDropType} ➔ ${targetPlayerName}`, true);
-          }
-          auditorAgent.recordHostAdvance(me.name, '2. Adıma Geç (Faz 1 Tamamlandı)', readyCount < alivePlayers.length);
-          await advanceToPhase2(currentRoom.code);
-        } catch (err) {
-          alert(err.message);
-        }
-      };
+  document.getElementById('btnSubmitPhase1').onclick = async () => {
+    const target = selectedDropTarget;
+    if (!target) {
+      return alert(currentLang === 'tr' ? "Lütfen şekeri atmak istediğin fincanı seç!" : "Please choose whose cup to drop the sugar into!");
     }
-  }
+
+    if (selectedDropType === 'SWEET' && target === myPlayerId) {
+      return alert(currentLang === 'tr' ? "Kendi fincanına şeker atamazsın! Bir rakip seçmelisin." : "You cannot drop sweet sugar into your own cup! Choose an opponent.");
+    }
+
+    try {
+      if (selectedDropType === 'CYANIDE') {
+        playPoisonSound();
+      } else {
+        playSlideSound();
+      }
+      await submitDropAction(currentRoom.code, myPlayerId, {
+        type: selectedDropType,
+        target: target
+      });
+    } catch (e) {
+      alert(e.message);
+    }
+  };
 }
 
 // -------------------------------------------------------------------
-// 4. ROUND MODIFIER: TAROT CARD VIEW (BLIND TASTING - PANEL 2)
-// -------------------------------------------------------------------
-function renderRoundModifierScreen() {
-  const L = getL();
-  const me = currentRoom.players[myPlayerId];
-
-  appEl.innerHTML = `
-    <div class="app-header">
-      <div style="display:flex; align-items:center; gap:8px;">
-        <span style="font-family:var(--font-pixel-heading); font-size:0.75rem; color:#ffd700; font-weight:800;">RAUND MODIFIER</span>
-        <span style="font-family:var(--font-pixel-heading); font-size:0.75rem; color:#f7ca3e; font-weight:800;">BLIND TASTING</span>
-      </div>
-      ${renderLangToggle()}
-    </div>
-
-    ${renderInventoryBar(me, L)}
-
-    <div class="filigree-frame" style="padding: 14px 12px 10px; margin-bottom:10px;">
-      <div class="filigree-corner top-left">${ICONS.filigreeCorner}</div>
-      <div class="filigree-corner top-right">${ICONS.filigreeCorner}</div>
-      <div class="filigree-corner bottom-left">${ICONS.filigreeCorner}</div>
-      <div class="filigree-corner bottom-right">${ICONS.filigreeCorner}</div>
-      <div class="filigree-inner-border"></div>
-
-      <div class="tarot-view-container">
-        <div style="margin-bottom:8px; width:100%; display:flex; justify-content:center;">
-          ${ICONS.blindTastingCardArt}
-        </div>
-
-        <div class="tarot-rule-text" style="font-size:0.75rem; margin-bottom:10px;">
-          ${currentLang === 'tr'
-            ? 'Raundun gizli kaderini belirlemek için bir fincan seç.'
-            : 'Choose a cup to define the hidden fate of the round.'}
-        </div>
-
-        <button class="btn-accept-challenge" id="btnAcceptModifier" style="padding:11px; margin-bottom:7px; font-size:0.75rem;">
-          ⚡ ${currentLang === 'tr' ? 'MEYDAN OKUMAYI KABUL ET' : 'ACCEPT CHALLENGE'}
-        </button>
-
-        <button class="btn-decline-challenge" id="btnDeclineModifier" style="padding:9px; font-size:0.72rem;">
-          ✓ ${currentLang === 'tr' ? 'REDDET' : 'DECLINE'}
-        </button>
-
-        <div class="tarot-footer-quote" style="margin-top:8px; font-size:0.65rem;">
-          ${currentLang === 'tr' ? 'Gizli dozlar. İkinci bir şans yok.' : 'Hidden doses. No second chances.'}
-        </div>
-      </div>
-    </div>
-  `;
-
-  attachLangEvents();
-
-  const handleAccept = async () => {
-    hasDismissedModifierModal = true;
-    if (me.isHost) {
-      await DB.update(`rooms/${currentRoom.code}`, { currentModifier: 'BLIND_TASTING' });
-    }
-    renderCurrentScreen();
-  };
-
-  const handleDecline = async () => {
-    hasDismissedModifierModal = true;
-    if (me.isHost) {
-      await DB.update(`rooms/${currentRoom.code}`, { currentModifier: null });
-    }
-    renderCurrentScreen();
-  };
-
-  const btnAccept = document.getElementById('btnAcceptModifier');
-  if (btnAccept) btnAccept.onclick = handleAccept;
-
-  const btnDecline = document.getElementById('btnDeclineModifier');
-  if (btnDecline) btnDecline.onclick = handleDecline;
-}
-
-// -------------------------------------------------------------------
-// 5. PHASE 2: ÇAYLAR MASADA & KARAR (DECISION PHASE - PANEL 1)
+// 4. PHASE 2: ÇAYLAR MASADA & KARAR (DRINK OR DUMP)
 // -------------------------------------------------------------------
 function renderPhase2() {
   const L = getL();
@@ -1770,137 +973,147 @@ function renderPhase2() {
   const hasSwap = (me.swapsLeft ?? 1) > 0;
   const swapOpponents = alivePlayers.filter(p => p.id !== myPlayerId);
 
-  // Default to DRINK to match reference Panel 1
-  if (!selectedVerdict) {
-    selectedVerdict = 'DRINK';
-  }
-
-  if (!selectedSwapTarget && swapOpponents.length > 0) {
+  if (!selectedSwapTarget && swapOpponents.length === 1) {
     selectedSwapTarget = swapOpponents[0].id;
   }
 
-  const meSugars = me.roundSugars ? (me.roundSugars.total || 0) : 0;
-  const targetOpponent = swapOpponents.find(o => o.id === selectedSwapTarget);
-  const selectedSwapTargetName = targetOpponent ? targetOpponent.name : '';
-  const allReady = (readyCount === alivePlayers.length);
+  const mySugars = me.roundSugars ? (me.roundSugars.total || 0) : 0;
+
+  // Render Table Cups Grid (Fix duplicate sugar count bug)
+  const cupsHtml = alivePlayers.map(p => {
+    const isMe = (p.id === myPlayerId);
+    const sugarsCount = p.roundSugars ? (p.roundSugars.total || 0) : 0;
+    return `
+      <div class="cup-card ${isMe ? 'is-me' : ''}">
+        <div class="cup-card-user">
+          <span style="font-size:1.4rem;">☕</span>
+          <div>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span>${p.isBot ? '🤖 ' : ''}${p.name}</span>
+              ${isMe ? `<span style="color:var(--btn-brass); font-weight:900; font-size:0.75rem;">${L.you}</span>` : ''}
+            </div>
+            <div style="font-size:0.72rem; color:var(--text-muted); font-weight:700;">
+              ${L.scoreLabel}: ${p.points || 0}/5
+            </div>
+          </div>
+        </div>
+        <div class="sugar-pill-badge">
+          🍬 ${sugarsCount} ${L.cupSugars(sugarsCount)}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  const tipText = selectedVerdict === 'DRINK' 
+    ? L.drinkTipClean(mySugars) 
+    : (selectedVerdict === 'DUMP' 
+      ? L.dumpTip 
+      : (selectedVerdict === 'SWAP' 
+        ? (currentLang === 'tr' ? 'Seçtiğin rakibin fincanını gizlice alır ve içersin! Kendi fincanın ona gider. Oyun boyunca 1 kez kullanılabilir.' : 'You secretly steal and drink their cup! Your cup goes to them. Usable once per game.')
+        : (currentLang === 'tr' ? 'Çayını iç, dök veya şüpheleniyorsan fincanını başka biriyle değiştir!' : 'Drink, dump, or secretly swap cups if you suspect poison!')));
 
   appEl.innerHTML = `
     <div class="app-header">
       <div class="brand-title">${L.round} ${currentRoom.round}</div>
       <div style="display:flex; align-items:center; gap:8px;">
-        <div class="room-badge">${readyCount}/${alivePlayers.length} ${currentLang === 'tr' ? 'Hazır' : 'Ready'}</div>
+        <div class="room-badge">${L.readyCounter(readyCount, alivePlayers.length)}</div>
         ${renderLangToggle()}
       </div>
     </div>
 
     ${renderInventoryBar(me, L)}
 
-    ${renderParlorEmotesBar()}
-
-    <!-- Flanked Candlesticks Header (Matching Panel 1) -->
-    <div class="candles-header">
-      <div class="candle-cluster">
-        <div class="candle-item short">${ICONS.pixelCandleShort}</div>
-        <div class="candle-item tall">${ICONS.pixelCandleTall}</div>
+    <!-- Table Cups Reveal Card -->
+    <div class="card" style="padding:14px;">
+      <div style="display:flex; align-items:center; gap:6px; margin-bottom:2px;">
+        <span style="font-size:1.2rem;">☕</span>
+        <span class="input-label" style="margin:0; color:var(--btn-espresso);">${L.phase2Title}</span>
       </div>
-      <div class="phase-main-title">DECISION PHASE .</div>
-      <div class="candle-cluster">
-        <div class="candle-item tall">${ICONS.pixelCandleTall}</div>
+      <p style="font-size:0.8rem; color:var(--text-muted); font-weight:600; margin-bottom:10px; line-height:1.35;">
+        ${L.phase2Desc}
+      </p>
+
+      <div class="table-cups-grid">
+        ${cupsHtml}
       </div>
     </div>
 
-    <!-- Symmetrical 2-3-2 Teacups Table (Matching Panel 1) -->
-    ${renderCupsTable232(alivePlayers, false)}
+    <!-- Your Verdict Card -->
+    <div class="card" style="text-align:center; padding:16px 14px;">
+      <h3 style="font-weight:900; font-size:1.15rem; color:var(--btn-espresso); margin-bottom:4px;">
+        ${L.cupSugarsMe(mySugars)}
+      </h3>
+      <p style="font-size:0.8rem; color:var(--text-muted); font-weight:700; margin-bottom:14px;">
+        ${L.verdictTitle}
+      </p>
 
-    <!-- 3-Card Action Deck & Unambiguous Decision Button (Matching Panel 1) -->
-    <div class="action-deck-section">
-      <div class="action-deck-title">SELECT AN ACTION</div>
-
-      <div class="pixel-actions-row">
-        <!-- DRINK Card -->
-        <div class="pixel-action-card ${selectedVerdict === 'DRINK' ? 'active-gold' : ''}" id="btnVerdictDrink">
-          <div class="pixel-action-icon">${ICONS.actionDrink}</div>
-          <div class="pixel-action-title">DRINK</div>
-        </div>
-
-        <!-- DUMP Card -->
-        <div class="pixel-action-card ${selectedVerdict === 'DUMP' ? 'active-gold' : ''}" id="btnVerdictDump">
-          <div class="pixel-action-icon">${ICONS.actionDump}</div>
-          <div class="pixel-action-title">DUMP</div>
-        </div>
-
-        <!-- SWAP CUP Card -->
-        <div class="pixel-action-card ${selectedVerdict === 'SWAP' ? 'active-gold' : ''} ${!hasSwap ? 'disabled' : ''}" id="btnVerdictSwap">
-          <div class="pixel-action-icon">${ICONS.actionSwap}</div>
-          <div class="pixel-action-title">SWAP<br>CUP</div>
-        </div>
+      <div class="grid-2">
+        <button class="btn btn-neutral ${selectedVerdict === 'DRINK' ? 'selected' : ''}" id="btnVerdictDrink" style="padding:14px 8px;">
+          ${L.drinkBtn}
+        </button>
+        <button class="btn btn-neutral ${selectedVerdict === 'DUMP' ? 'selected' : ''}" id="btnVerdictDump" style="padding:14px 8px;">
+          ${L.dumpBtn}
+        </button>
       </div>
 
-      ${selectedVerdict === 'SWAP' && swapOpponents.length > 0 ? `
-        <div class="swap-target-row-compact">
-          <div class="swap-target-title">${L.swapTargetTitle}</div>
-          <div class="swap-target-row">
+      <button class="btn btn-neutral ${selectedVerdict === 'SWAP' ? 'selected' : ''} ${!hasSwap ? 'btn-disabled' : ''}" id="btnVerdictSwap" style="width:100%; margin-top:8px; padding:12px 8px; font-weight:800;" ${!hasSwap ? 'disabled' : ''}>
+        ${L.swapBtn(me.swapsLeft ?? 1)}
+      </button>
+
+      ${selectedVerdict === 'SWAP' ? `
+        <div style="margin-top:12px; text-align:left; background:var(--bg-parchment); border:1.5px solid var(--border-strong); border-radius:10px; padding:10px;">
+          <div style="font-weight:900; font-size:0.85rem; color:var(--btn-espresso); margin-bottom:2px;">
+            ${L.swapTargetTitle}
+          </div>
+          <p style="font-size:0.75rem; color:var(--text-muted); font-weight:600; margin-bottom:8px; line-height:1.3;">
+            ${L.swapTargetSub}
+          </p>
+          <div style="display:flex; flex-direction:column; gap:6px;">
             ${swapOpponents.map(opp => {
-              const isChosen = (selectedSwapTarget === opp.id);
+              const oppSugars = opp.roundSugars ? (opp.roundSugars.total || 0) : 0;
+              const isSelected = selectedSwapTarget === opp.id;
               return `
-                <button class="btn-swap-pill ${isChosen ? 'selected' : ''}" data-swap-target-id="${opp.id}">
-                  ${opp.name}
-                </button>
+                <div class="target-card ${isSelected ? 'selected' : ''}" data-swap-target-id="${opp.id}" style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; cursor:pointer;">
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <span style="font-size:1.2rem;">☕</span>
+                    <div>
+                      <div style="font-weight:800; font-size:0.85rem; color:var(--text-main);">
+                        ${opp.isBot ? '🤖 ' : ''}${opp.name}
+                      </div>
+                      <div style="font-size:0.7rem; color:var(--text-muted); font-weight:600;">
+                        ${L.scoreLabel}: ${opp.points || 0}/5
+                      </div>
+                    </div>
+                  </div>
+                  <div class="sugar-pill-badge" style="margin:0; font-size:0.75rem;">
+                    🍬 ${oppSugars} ${L.cupSugars(oppSugars)}
+                  </div>
+                </div>
               `;
             }).join('')}
           </div>
         </div>
       ` : ''}
 
-      <!-- Selected Action Summary Box -->
-      <div class="verdict-summary-card">
-        ${selectedVerdict === 'DRINK' ? `
-          <div class="summary-badge gold">☕ DRINK SEÇİLDİ</div>
-          <div class="summary-text">${currentLang === 'tr' ? `Fincanındaki ${meSugars} şekeri içeceksin. Çay temizse +${meSugars} Puan! Siyanür varsa panzehir yoksa elenirsin!` : `Drink tea in your cup. If clean: +${meSugars} Sugar Points! If cyanide and no antidote: eliminated.`}</div>
-        ` : selectedVerdict === 'DUMP' ? `
-          <div class="summary-badge slate">🫗 DUMP SEÇİLDİ</div>
-          <div class="summary-text">${currentLang === 'tr' ? 'Fincanındaki çayı yere dökeceksin. 0 puan alırsın ama zehirden kesin olarak kurtulursun.' : 'Dump tea onto the floor. 0 points, but guaranteed survival from cyanide.'}</div>
-        ` : `
-          <div class="summary-badge amber">🔄 SWAP CUP SEÇİLDİ</div>
-          <div class="summary-text">${currentLang === 'tr' ? `Fincanını gizlice ${selectedSwapTargetName || 'seçilen rakip'} ile takas edeceksin! Kendi fincanın ona gidecek, onun çayını içeceksin.` : `Secretly swap cups with ${selectedSwapTargetName || 'target'}! Your cup goes to them, you drink their tea.`}</div>
-        `}
-      </div>
+      <p style="font-size:0.75rem; color:var(--text-muted); line-height:1.35; font-weight:600; margin-top:8px;">
+        ${tipText}
+      </p>
+    </div>
 
-      <!-- 1. UNAMBIGUOUS PERSONAL DECISION CONFIRMATION BUTTON -->
-      ${!me.ready ? `
-        <button class="btn-verdict-decision-prominent" id="btnConfirmVerdict">
-          <span class="btn-decision-label">${currentLang === 'tr' ? (selectedVerdict === 'DRINK' ? '☕ KARAR VER: ÇAYIMI İÇİYORUM' : (selectedVerdict === 'DUMP' ? '🫗 KARAR VER: ÇAYI DÖKÜYORUM' : `🔄 KARAR VER: ${selectedSwapTargetName} İLE TAKAS ET`)) : (selectedVerdict === 'DRINK' ? '☕ CONFIRM: DRINK MY TEA' : (selectedVerdict === 'DUMP' ? '🫗 CONFIRM: DUMP THE TEA' : `🔄 CONFIRM: SWAP WITH ${selectedSwapTargetName}`))}</span>
-        </button>
-      ` : `
-        <div class="verdict-locked-banner">
-          <span class="locked-check">✓</span>
-          <div class="locked-info">
-            <div class="locked-title">${currentLang === 'tr' ? `SENİN KARARIN KİLİTLENDİ: [${selectedVerdict === 'DRINK' ? 'ÇAYIMI İÇİYORUM' : (selectedVerdict === 'DUMP' ? 'ÇAYI DÖKÜYORUM' : 'FİNCANI TAKAS EDİYORUM')}]` : `YOUR DECISION IS LOCKED: [${selectedVerdict}]`}</div>
-            <div class="locked-subtitle">${currentLang === 'tr' ? `Masadakiler bekleniyor... (${readyCount}/${alivePlayers.length} Hazır)` : `Waiting for others... (${readyCount}/${alivePlayers.length} Ready)`}</div>
-          </div>
-        </div>
-      `}
+    <div style="margin-top:auto; padding-top:10px; display:flex; flex-direction:column; gap:8px;">
+      <button class="btn btn-primary ${me.ready ? 'btn-disabled' : ''}" id="btnConfirmVerdict" ${me.ready ? 'disabled' : ''}>
+        ${me.ready ? `⏳ ${L.waitingOthers(readyCount, alivePlayers.length)}` : L.confirmVerdict}
+      </button>
 
-      <!-- 2. DISTINCT HOST REVEAL & PHASE ADVANCE CONTROL -->
       ${me.isHost ? `
-        <div class="host-control-card">
-          <div class="host-control-header">👑 ${currentLang === 'tr' ? 'SALON KURUCUSU KONTROLÜ' : 'HOST PARLOR CONTROLS'}</div>
-          <button class="btn-host-reveal-phase3 ${allReady ? 'glow-gold' : ''}" id="btnHostRevealPhase3">
-            <span class="btn-reveal-icon">➜</span>
-            <span class="btn-reveal-text">${currentLang === 'tr' ? 'MASAYI AÇIKLA (SONUÇLARA GEÇ)' : 'REVEAL TABLE (PROCEED TO RESULTS)'}</span>
-          </button>
-          <div class="host-control-hint">
-            ${allReady 
-              ? (currentLang === 'tr' ? '✓ Masadaki herkes kararını verdi! Masayı açabilirsiniz.' : '✓ Everyone is ready! Reveal the results.')
-              : (currentLang === 'tr' ? '⚠️ Bazı oyuncular henüz karar vermedi. Kurucu olarak masayı erken açabilirsiniz.' : '⚠️ Some players have not decided. You may force reveal early.')}
-          </div>
-        </div>
+        <button class="btn btn-neutral" id="btnHostForcePhase3" style="border-color:var(--border-strong); font-size:0.85rem;">
+          ${L.revealResultsHost}
+        </button>
       ` : ''}
     </div>
   `;
 
   attachLangEvents();
-  attachParlorEmoteEvents();
 
   document.getElementById('btnVerdictDrink').onclick = () => {
     selectedVerdict = 'DRINK';
@@ -1913,8 +1126,9 @@ function renderPhase2() {
   };
 
   const btnSwap = document.getElementById('btnVerdictSwap');
-  if (btnSwap && hasSwap) {
+  if (btnSwap) {
     btnSwap.onclick = () => {
+      if (!hasSwap) return;
       selectedVerdict = 'SWAP';
       if (!selectedSwapTarget && swapOpponents.length > 0) {
         selectedSwapTarget = swapOpponents[0].id;
@@ -1925,69 +1139,46 @@ function renderPhase2() {
 
   document.querySelectorAll('[data-swap-target-id]').forEach(el => {
     el.onclick = () => {
-      const tid = el.getAttribute('data-swap-target-id');
-      if (tid !== myPlayerId) {
-        selectedSwapTarget = tid;
-        if (selectedVerdict === 'SWAP') {
-          renderPhase2();
-        }
-      }
+      selectedSwapTarget = el.getAttribute('data-swap-target-id');
+      renderPhase2();
     };
   });
 
-  const btnConfirm = document.getElementById('btnConfirmVerdict');
-  if (btnConfirm) {
-    btnConfirm.onclick = async () => {
-      if (!selectedVerdict) {
-        selectedVerdict = 'DRINK';
+  document.getElementById('btnConfirmVerdict').onclick = async () => {
+    if (!selectedVerdict) {
+      return alert(currentLang === 'tr' ? "Lütfen bir karar ver (İç, Dök veya Değiştir)!" : "Please choose an action (Drink, Dump, or Swap)!");
+    }
+    if (selectedVerdict === 'SWAP' && !selectedSwapTarget) {
+      return alert(currentLang === 'tr' ? "Lütfen fincanını değiştireceğin bir rakip seç!" : "Please select an opponent to swap cups with!");
+    }
+    try {
+      if (selectedVerdict === 'DRINK' || selectedVerdict === 'SWAP') {
+        playSipSound();
+      } else {
+        playSlideSound();
       }
-      if (selectedVerdict === 'SWAP' && !selectedSwapTarget) {
-        return alert(currentLang === 'tr' ? "Lütfen fincanını değiştireceğin bir rakip seç!" : "Please select an opponent to swap cups with!");
-      }
-      try {
-        if (selectedVerdict === 'DRINK' || selectedVerdict === 'SWAP') {
-          playSipSound();
-        } else {
-          playSlideSound();
-        }
-
-        const finalVerdictPayload = selectedVerdict === 'SWAP' ? `SWAP:${selectedSwapTarget}` : selectedVerdict;
-        await submitVerdict(currentRoom.code, myPlayerId, finalVerdictPayload);
-        auditorAgent.recordDecisionConfirmed(myPlayerId, me.name, finalVerdictPayload, me.isHost);
-      } catch (e) {
-        alert(e.message);
-      }
-    };
-  }
+      const finalVerdict = (selectedVerdict === 'SWAP') ? `SWAP:${selectedSwapTarget}` : selectedVerdict;
+      await submitVerdict(currentRoom.code, myPlayerId, finalVerdict);
+    } catch (err) {
+      alert(err.message);
+    }
+  };
 
   if (me.isHost) {
-    const btnHostReveal = document.getElementById('btnHostRevealPhase3');
-    if (btnHostReveal) {
-      btnHostReveal.onclick = async () => {
-        try {
-          if (!me.ready) {
-            const finalVerdictPayload = selectedVerdict === 'SWAP' ? `SWAP:${selectedSwapTarget}` : (selectedVerdict || 'DRINK');
-            await submitVerdict(currentRoom.code, myPlayerId, finalVerdictPayload);
-            auditorAgent.recordDecisionConfirmed(myPlayerId, me.name, finalVerdictPayload, true);
-          }
-          auditorAgent.recordHostAdvance(me.name, 'Masayı Açıkla (Faz 2 Bitti)', !allReady);
-          await advanceToPhase3(currentRoom.code);
-        } catch (e) {
-          alert(e.message);
-        }
-      };
-    }
+    document.getElementById('btnHostForcePhase3').onclick = async () => {
+      await advanceToPhase3(currentRoom.code, currentRoom);
+    };
   }
 }
 
 // -------------------------------------------------------------------
-// 7. PHASE 3: SONUÇ, PUANLAR VE ELEMELER (UNIFIED RESULT PHASE - PANEL 3)
+// 5. PHASE 3: SONUÇ, PUANLAR VE ELEMELER (RELIEF & REGRET)
 // -------------------------------------------------------------------
 function renderPhase3() {
   const L = getL();
   const me = currentRoom.players[myPlayerId];
+  const logs = currentRoom.roundLogs || [];
   const allPlayers = Object.values(currentRoom.players || {});
-  const targetGoal = currentRoom.targetPoints || 8;
 
   // Play audio once
   if (!hasPlayedPhase3Sound) {
@@ -1998,417 +1189,238 @@ function renderPhase3() {
       playPillSound();
     } else if (me.lastDrank) {
       playSipSound();
-    } else {
-      playSlideSound();
     }
   }
 
-  // 1. Prominent Personal Outcome Card (Kişiye Özel Raund Sonucu)
-  let personalCardHtml = '';
-  const myNemesis = me.nemesis || (currentLang === 'tr' ? 'Gizemli Bir Katil' : 'A Mysterious Killer');
-  const pointsLost = me.pointsLostThisRound ?? (me.autoPillUsed ? 2 : 0);
-  const pointsEarned = me.pointsEarnedThisRound ?? 0;
-
-  if (!me.alive && me.lastDrank && (me.roundSugars?.cyanide || 0) > 0) {
-    // 💀 Fatal Poisoning (Zehirlendi ve Elendi)
-    personalCardHtml = `
-      <div class="personal-outcome-card fatal">
-        <div class="p-outcome-header">
-          <span class="p-outcome-icon">💀</span>
-          <div class="p-outcome-titles">
-            <div class="p-outcome-title">${currentLang === 'tr' ? 'ZEHİRLENDİN VE ELENDİN!' : 'FATALLY POISONED!'}</div>
-            <div class="p-outcome-subtitle">${currentLang === 'tr' ? `${myNemesis}'ın fincanına bıraktığı siyanür seni yakaladı. Masadan elendin!` : `${myNemesis} slipped cyanide into your cup. You were eliminated!`}</div>
-          </div>
-        </div>
-        <div class="p-outcome-badge fatal">
-          ☠️ ${currentLang === 'tr' ? 'MASADAN ELENDİN (-' + pointsLost + ' PUAN)' : 'ELIMINATED (-' + pointsLost + ' PTS)'}
-        </div>
+  // Personal Result Banner Card
+  let resultBannerHtml = '';
+  if (!me.alive) {
+    resultBannerHtml = `
+      <div class="death-card">
+        <div style="margin-bottom:8px;">${ICONS.skull}</div>
+        <h2 style="font-size:1.8rem; font-weight:900; color:var(--btn-crimson); margin-bottom:6px;">
+          ${L.eliminatedTitle}
+        </h2>
+        <p style="font-size:1.1rem; font-weight:800; color:var(--text-main); margin-bottom:8px;">
+          ${L.fondipDrink}
+        </p>
+        <p style="font-size:0.8rem; font-weight:600; color:var(--text-muted);">
+          ${L.deadDesc}
+        </p>
       </div>
     `;
   } else if (me.autoPillUsed) {
-    // 💊 Saved by Antidote Pill
-    personalCardHtml = `
-      <div class="personal-outcome-card pill-saved">
-        <div class="p-outcome-header">
-          <span class="p-outcome-icon">💊</span>
-          <div class="p-outcome-titles">
-            <div class="p-outcome-title">${currentLang === 'tr' ? 'PANZEHİR HAYATINI KURTARDI!' : 'ANTIDOTE SAVED YOUR LIFE!'}</div>
-            <div class="p-outcome-subtitle">${currentLang === 'tr' ? `${myNemesis} çayına siyanür atmıştı! Panzehir hapın sayesinde ölümden döndün.` : `${myNemesis} poisoned your tea! Your antidote pill saved you from death.`}</div>
-          </div>
-        </div>
-        <div class="p-outcome-badge pill-saved">
-          🛡️ ${currentLang === 'tr' ? 'HAYATTASIN (-' + pointsLost + ' PUAN CEZA)' : 'SURVIVED (-' + pointsLost + ' PTS PENALTY)'}
-        </div>
+    resultBannerHtml = `
+      <div class="card" style="text-align:center; border-color:var(--btn-brass); background:rgba(212,175,55,0.08); padding:16px;">
+        <div style="font-size:2.2rem; margin-bottom:4px;">💊</div>
+        <h2 style="font-size:1.35rem; font-weight:900; color:var(--btn-brass); margin-bottom:6px;">
+          ${L.autoPillTitle}
+        </h2>
+        <p style="font-size:0.85rem; font-weight:700; color:var(--text-main); line-height:1.4;">
+          ${L.autoPillDesc(me.pointsLostThisRound || 0)}
+        </p>
       </div>
     `;
-  } else if ((me.killsThisRound || 0) > 0 || (me.poisonHitsThisRound || 0) > 0) {
-    // 🎯 Successful Assassin
-    const isFatalKill = (me.killsThisRound || 0) > 0;
-    personalCardHtml = `
-      <div class="personal-outcome-card assassin">
-        <div class="p-outcome-header">
-          <span class="p-outcome-icon">🎯</span>
-          <div class="p-outcome-titles">
-            <div class="p-outcome-title">${currentLang === 'tr' ? 'SUİKAST BAŞARILI!' : 'ASSASSINATION SUCCESSFUL!'}</div>
-            <div class="p-outcome-subtitle">${currentLang === 'tr' 
-              ? (isFatalKill ? 'Hazırladığın siyanür kurbanını avladı ve masadan eledi!' : 'Hedefine siyanür içirdin, panzehir hapını zorladı!') 
-              : (isFatalKill ? 'Your cyanide eliminated your victim from the table!' : 'Your cyanide hit the target, forcing their antidote!')}</div>
-          </div>
-        </div>
-        <div class="p-outcome-badge assassin">
-          🎯 +${pointsEarned} ${currentLang === 'tr' ? 'SUİKAST PUANI' : 'ASSASSIN BOUNTY'}${isFatalKill ? ' 👑' : ''}
-        </div>
-      </div>
-    `;
-  } else if (me.dumpedWasPoisoned) {
-    // 🛡️ Great Intuition (Dumped Cyanide)
-    personalCardHtml = `
-      <div class="personal-outcome-card relief">
-        <div class="p-outcome-header">
-          <span class="p-outcome-icon">🛡️</span>
-          <div class="p-outcome-titles">
-            <div class="p-outcome-title">${currentLang === 'tr' ? 'BÜYÜK KURTULUŞ!' : 'HEROIC INTUITION!'}</div>
-            <div class="p-outcome-subtitle">${currentLang === 'tr' ? 'Sezgilerin hayatını kurtardı: Çayını döktün ve fincandaki gizli siyanürden kaçtın!' : 'Your instincts saved you: You dumped the cup and dodged lethal cyanide!'}</div>
-          </div>
-        </div>
-        <div class="p-outcome-badge relief">
-          😮‍💨 ${currentLang === 'tr' ? 'ZEHİRDEN KURTULDUN (0 PUAN)' : 'SAVED FROM CYANIDE (0 PTS)'}
-        </div>
-      </div>
-    `;
-  } else if (me.verdict === 'DUMP' && !me.dumpedWasPoisoned) {
-    // 🫗 Regret (Dumped Clean Tea)
-    personalCardHtml = `
-      <div class="personal-outcome-card regret">
-        <div class="p-outcome-header">
-          <span class="p-outcome-icon">🫗</span>
-          <div class="p-outcome-titles">
-            <div class="p-outcome-title">${currentLang === 'tr' ? 'BOŞA DÖKTÜN!' : 'CLEAN TEA WASTED!'}</div>
-            <div class="p-outcome-subtitle">${currentLang === 'tr' ? `Çayını döktün fakat fincan tertemizdi! ${me.dumpedSweetCount || 0} tatlı şeker heba oldu.` : `You panicked and dumped, but the tea was clean! ${me.dumpedSweetCount || 0} sweet sugars wasted.`}</div>
-          </div>
-        </div>
-        <div class="p-outcome-badge regret">
-          🤦‍♂️ ${currentLang === 'tr' ? 'TEMİZ ÇAY HEBA OLDU (0 PUAN)' : 'CLEAN TEA DUMPED (0 PTS)'}
-        </div>
-      </div>
-    `;
-  } else if (me.lastDrank && pointsEarned > 0) {
-    // ☕ Clean Tea (Sweet Victory)
-    personalCardHtml = `
-      <div class="personal-outcome-card clean">
-        <div class="p-outcome-header">
-          <span class="p-outcome-icon">☕</span>
-          <div class="p-outcome-titles">
-            <div class="p-outcome-title">${currentLang === 'tr' ? 'AFİYET OLSUN!' : 'SWEET REWARD!'}</div>
-            <div class="p-outcome-subtitle">${currentLang === 'tr' ? `Temiz ve lezzetli çayını içtin, fincandaki tüm tatlı şekerleri topladın!` : `You drank clean, delightful tea and harvested all sweet sugar points!`}</div>
-          </div>
-        </div>
-        <div class="p-outcome-badge clean">
-          🍬 +${pointsEarned} ${currentLang === 'tr' ? 'ŞEKER PUANI KAZANDIN' : 'SUGAR POINTS EARNED'}
-        </div>
-      </div>
-    `;
-  } else if (!me.alive) {
-    // 👁️ Spectator
-    personalCardHtml = `
-      <div class="personal-outcome-card spectator">
-        <div class="p-outcome-header">
-          <span class="p-outcome-icon">👁️</span>
-          <div class="p-outcome-titles">
-            <div class="p-outcome-title">${currentLang === 'tr' ? 'SALON GÖZLEMCİSİ' : 'PARLOR SPECTATOR'}</div>
-            <div class="p-outcome-subtitle">${currentLang === 'tr' ? 'Masada yaşanan entrikaları ve hayatta kalanların mücadelesini izliyorsun.' : 'You are observing the ongoing drama and casualties around the parlor table.'}</div>
-          </div>
-        </div>
-        <div class="p-outcome-badge spectator">
-          👁️ ${currentLang === 'tr' ? 'İZLEYİCİ' : 'SPECTATOR'}
-        </div>
+  } else if (me.lastDrank) {
+    const earned = me.pointsEarnedThisRound || 0;
+    resultBannerHtml = `
+      <div class="card" style="text-align:center; border-color:var(--btn-poison); background:rgba(30,94,57,0.05); padding:16px;">
+        <div style="font-size:2rem; margin-bottom:4px;">🍬</div>
+        <h2 style="font-size:1.4rem; font-weight:900; color:var(--btn-poison); margin-bottom:6px;">
+          ${L.survivedTitleClean(earned)}
+        </h2>
+        <p style="font-size:0.82rem; font-weight:700; color:var(--text-muted); line-height:1.4;">
+          ${earned > 0 ? L.survivedCleanSub : (currentLang === 'tr' ? 'Boş çayı içtin, güvendesin.' : 'You drank an empty cup, you are safe.')}
+        </p>
       </div>
     `;
   } else {
-    // Neutral
-    personalCardHtml = `
-      <div class="personal-outcome-card neutral">
-        <div class="p-outcome-header">
-          <span class="p-outcome-icon">☕</span>
-          <div class="p-outcome-titles">
-            <div class="p-outcome-title">${currentLang === 'tr' ? 'BOŞ FİNCAN' : 'EMPTY CUP'}</div>
-            <div class="p-outcome-subtitle">${currentLang === 'tr' ? 'Fincanında bu raund şeker veya zehir yoktu.' : 'There was neither sugar nor poison in your cup this round.'}</div>
-          </div>
+    // DUMPED TEA: Relief or Regret feedback!
+    if (me.dumpedWasPoisoned) {
+      resultBannerHtml = `
+        <div class="banner-relief">
+          <div style="font-size:2.2rem; margin-bottom:4px;">😮‍💨 🛡️</div>
+          <h2 style="font-size:1.4rem; font-weight:900; color:#1e5e39; margin-bottom:6px;">
+            ${L.dumpReliefTitle}
+          </h2>
+          <p style="font-size:0.85rem; font-weight:700; color:var(--text-main); line-height:1.4;">
+            ${L.dumpReliefDesc}
+          </p>
         </div>
-        <div class="p-outcome-badge neutral">
-          +0 ${currentLang === 'tr' ? 'PUAN' : 'PTS'}
+      `;
+    } else {
+      resultBannerHtml = `
+        <div class="banner-regret">
+          <div style="font-size:2.2rem; margin-bottom:4px;">🤦‍♂️ 🫗</div>
+          <h2 style="font-size:1.4rem; font-weight:900; color:#b35a0f; margin-bottom:6px;">
+            ${L.dumpRegretTitle}
+          </h2>
+          <p style="font-size:0.85rem; font-weight:700; color:var(--text-main); line-height:1.4;">
+            ${L.dumpRegretDesc(me.dumpedSweetCount || 0)}
+          </p>
         </div>
+      `;
+    }
+  }
+
+  // Cup Swap Banner (Awarded/shown if you swapped cups this round)
+  let swapBannerHtml = '';
+  if (me.swappedThisRound) {
+    swapBannerHtml = `
+      <div class="card" style="text-align:center; border-color:var(--btn-brass); background:rgba(212,175,55,0.08); padding:16px; margin-bottom:12px;">
+        <div style="font-size:2.2rem; margin-bottom:4px;">🔄 ☕</div>
+        <h2 style="font-size:1.35rem; font-weight:900; color:var(--btn-brass); margin-bottom:4px;">
+          ${L.swapBannerTitle}
+        </h2>
+        <p style="font-size:0.85rem; font-weight:700; color:var(--text-main); line-height:1.4;">
+          ${L.swapBannerSub(me.swappedThisRound.targetName)}
+        </p>
       </div>
     `;
   }
 
-  // 2. Masadaki Diğer Kayıplar (Other Table Casualties)
-  const otherCasualties = (currentRoom.lastPoisonEvents || []).filter(v => v.victimId !== myPlayerId);
-  let otherCasualtiesHtml = '';
-  if (otherCasualties.length > 0) {
-    otherCasualtiesHtml = `
-      <div class="parlor-table-casualties-panel">
-        <div class="casualties-panel-header">
-          <span>⚔️ ${currentLang === 'tr' ? 'BU RAUNDUN DİĞER KAYIPLARI' : 'OTHER CASUALTIES THIS ROUND'}</span>
-          <span class="badge-count">${otherCasualties.length}</span>
-        </div>
-        <div class="casualties-grid">
-          ${otherCasualties.map(v => `
-            <div class="casualty-entry ${v.isPillSaved ? 'pill-saved' : 'fatal'}">
-              <span class="c-entry-icon">${v.isPillSaved ? '💊' : '☠️'}</span>
-              <div class="c-entry-body">
-                <div class="c-entry-name">
-                  <strong>${v.victimName}</strong> 
-                  <span class="c-entry-status ${v.isPillSaved ? 'saved' : 'dead'}">${v.isPillSaved ? (currentLang === 'tr' ? 'Panzehirle Kurtuldu' : 'Saved by Pill') : (currentLang === 'tr' ? 'Elendi' : 'Eliminated')}</span>
-                </div>
-                <div class="c-entry-killer">
-                  ${currentLang === 'tr' ? 'Katil' : 'Killer'}: <strong>${v.killerName}</strong>
-                  ${v.isLeaderBounty ? '<span class="tag-bounty">👑 Lider Avı</span>' : ''}
-                  ${v.wasTrojan ? '<span class="tag-bounty">🐴 Truva Atı</span>' : ''}
-                  ${v.wasLandmine ? '<span class="tag-bounty">💣 Mayın Tuzağı</span>' : ''}
-                </div>
-              </div>
-              <div class="c-entry-pts ${v.isPillSaved ? 'neg' : 'dead'}">
-                ${v.isPillSaved ? `-${v.pointsLost}P` : 'ELENDİ'}
-              </div>
-            </div>
-          `).join('')}
-        </div>
+  // Kill Bounty Banner (Awarded if you eliminated someone with cyanide this round)
+  let killBountyHtml = '';
+  if (me.killsThisRound > 0) {
+    killBountyHtml = `
+      <div class="card" style="text-align:center; border-color:var(--btn-crimson); background:rgba(184,51,42,0.08); padding:16px; margin-bottom:12px;">
+        <div style="font-size:2.2rem; margin-bottom:4px;">🎯 ☠️</div>
+        <h2 style="font-size:1.35rem; font-weight:900; color:var(--btn-crimson); margin-bottom:4px;">
+          ${L.killBountyBanner(me.killsThisRound)}
+        </h2>
+        <p style="font-size:0.85rem; font-weight:700; color:var(--text-main); line-height:1.4;">
+          ${L.killBountySub}
+        </p>
       </div>
     `;
   }
 
-  // 1. Build Round Chronicles (Bu Raund Neler Yaşandı?)
-  const roundEvents = [];
-  if (currentRoom.roundLogs && currentRoom.roundLogs.length > 0) {
-    for (const ev of currentRoom.roundLogs) {
-      if (ev.type === 'CUP_SWAP') {
-        roundEvents.push({
-          icon: '🔄',
-          text: currentLang === 'tr' 
-            ? `<strong>${ev.actor}</strong>, <strong>${ev.target}</strong>'ın fincanını çaldı!`
-            : `<strong>${ev.actor}</strong> secretly stole <strong>${ev.target}</strong>'s cup!`
-        });
-      } else if (ev.type === 'DRINK_CLEAN') {
-        roundEvents.push({
-          icon: '☕',
-          text: currentLang === 'tr'
-            ? `<strong>${ev.name}</strong> temiz çayını içti: <span class="chronicle-gain">+${ev.pointsEarned} Puan</span>`
-            : `<strong>${ev.name}</strong> drank clean tea: <span class="chronicle-gain">+${ev.pointsEarned} Points</span>`
-        });
-      } else if (ev.type === 'DUMP') {
-        if (ev.wasPoisoned) {
-          roundEvents.push({
-            icon: '🫗',
-            text: currentLang === 'tr'
-              ? `<strong>${ev.name}</strong> şüphelendi ve döktü: <span class="chronicle-relief">Zehirden kurtuldu! 😮‍💨</span>`
-              : `<strong>${ev.name}</strong> suspected poison and dumped: <span class="chronicle-relief">Saved from cyanide! 😮‍💨</span>`
-          });
-        } else {
-          roundEvents.push({
-            icon: '🫗',
-            text: currentLang === 'tr'
-              ? `<strong>${ev.name}</strong> çayını döktü: ${ev.sweetCount || 0} tatlı şeker heba oldu (Temizdi) 🤦‍♂️`
-              : `<strong>${ev.name}</strong> dumped tea: ${ev.sweetCount || 0} sweet sugar wasted (Clean tea) 🤦‍♂️`
-          });
-        }
-      } else if (ev.type === 'POISONED_PILL') {
-        const killerStr = ev.killers && ev.killers.length > 0 ? `(Katil: ${ev.killers.join(', ')})` : '';
-        roundEvents.push({
-          icon: '💊',
-          text: currentLang === 'tr'
-            ? `<strong>${ev.name}</strong> siyanür içti! Panzehir hapı kurtardı: <span class="chronicle-loss">-${ev.pointsLost ?? 0} Puan</span> ${killerStr}`
-            : `<strong>${ev.name}</strong> drank cyanide! Antidote pill saved them: <span class="chronicle-loss">-${ev.pointsLost ?? 0} Points</span> ${killerStr}`
-        });
-      } else if (ev.type === 'DEATH') {
-        const killerStr = ev.killers && ev.killers.length > 0 ? `(Katil: <strong>${ev.killers.join(', ')}</strong> +2 Puan)` : '';
-        roundEvents.push({
-          icon: '☠️',
-          text: currentLang === 'tr'
-            ? `<strong>${ev.name}</strong> siyanür içti ve <span class="chronicle-eliminated">ELENDİ!</span> ${killerStr}`
-            : `<strong>${ev.name}</strong> drank cyanide and was <span class="chronicle-eliminated">ELIMINATED!</span> ${killerStr}`
-        });
-      }
-    }
+  // Poison Hit Banner (Awarded if your cyanide was drunk by an opponent and their pill activated)
+  let poisonHitHtml = '';
+  if (me.poisonHitsThisRound > 0 && me.killsThisRound === 0) {
+    poisonHitHtml = `
+      <div class="card" style="text-align:center; border-color:var(--btn-poison); background:rgba(30,94,57,0.08); padding:16px; margin-bottom:12px;">
+        <div style="font-size:2.2rem; margin-bottom:4px;">🎯 💊</div>
+        <h2 style="font-size:1.35rem; font-weight:900; color:var(--btn-poison); margin-bottom:4px;">
+          ${L.poisonHitBanner(me.poisonHitsThisRound)}
+        </h2>
+        <p style="font-size:0.85rem; font-weight:700; color:var(--text-main); line-height:1.4;">
+          ${L.poisonHitSub}
+        </p>
+      </div>
+    `;
   }
 
-  // Fallback if roundLogs is empty: construct from players state
-  if (roundEvents.length === 0) {
-    for (const p of allPlayers) {
-      if (p.swappedThisRound) {
-        roundEvents.push({
-          icon: '🔄',
-          text: currentLang === 'tr'
-            ? `<strong>${p.name}</strong>, <strong>${p.swappedThisRound.targetName}</strong>'ın fincanını çaldı!`
-            : `<strong>${p.name}</strong> stole <strong>${p.swappedThisRound.targetName}</strong>'s cup!`
-        });
-      }
-      if (p.lastDrank) {
-        if (p.autoPillUsed) {
-          roundEvents.push({
-            icon: '💊',
-            text: currentLang === 'tr'
-              ? `<strong>${p.name}</strong> siyanür içti! Panzehir hayatını kurtardı (-${p.pointsLostThisRound ?? 0} Puan).`
-              : `<strong>${p.name}</strong> drank cyanide! Antidote pill saved their life (-${p.pointsLostThisRound ?? 0} Pts).`
-          });
-        } else if (!p.alive) {
-          roundEvents.push({
-            icon: '☠️',
-            text: currentLang === 'tr'
-              ? `<strong>${p.name}</strong> siyanür içti ve elendi!`
-              : `<strong>${p.name}</strong> drank cyanide and was eliminated!`
-          });
-        } else {
-          roundEvents.push({
-            icon: '☕',
-            text: currentLang === 'tr'
-              ? `<strong>${p.name}</strong> temiz çayını içti: +${p.pointsEarnedThisRound || 0} Puan`
-              : `<strong>${p.name}</strong> drank clean tea: +${p.pointsEarnedThisRound || 0} Points`
-          });
-        }
-      } else if (p.verdict === 'DUMP') {
-        if (p.dumpedWasPoisoned) {
-          roundEvents.push({
-            icon: '🫗',
-            text: currentLang === 'tr'
-              ? `<strong>${p.name}</strong> şüphelendi ve döktü: Zehirden kurtuldu! 😮‍💨`
-              : `<strong>${p.name}</strong> suspected poison and dumped: Saved from cyanide! 😮‍💨`
-          });
-        } else {
-          roundEvents.push({
-            icon: '🫗',
-            text: currentLang === 'tr'
-              ? `<strong>${p.name}</strong> çayını döktü: ${p.dumpedSweetCount || 0} şeker heba oldu (Temizdi) 🤦‍♂️`
-              : `<strong>${p.name}</strong> dumped clean tea (${p.dumpedSweetCount || 0} sweets wasted) 🤦‍♂️`
-          });
-        }
-      }
-    }
-  }
-
-  // 2. Build Live Leaderboard (Canlı Skor Tablosu - Hedef: 8 Puan)
-  const rankMedals = ['🥇', '🥈', '🥉'];
-  const sortedLeaderboard = [...allPlayers].sort((a, b) => {
-    if (a.alive !== b.alive) return a.alive ? -1 : 1;
-    if ((b.points || 0) !== (a.points || 0)) return (b.points || 0) - (a.points || 0);
-    return (b.killsThisRound || 0) - (a.killsThisRound || 0);
-  });
-
-  const recapRowsHtml = sortedLeaderboard.map((p, idx) => {
-    const isPlayerMe = (p.id === myPlayerId);
-    const medal = idx < 3 ? rankMedals[idx] : `#${idx + 1}`;
-    const recap = p.recap || {};
-
-    let actionText = recap.actionShort || '';
-    if (p.swappedThisRound) {
-      const cleanTarget = (p.swappedThisRound.targetName || '').replace(/^Bot\s+/, '');
-      actionText = `🔄 ${cleanTarget}`;
-    } else if (p.verdict === 'DUMP' || actionText.includes('DÖKTÜ')) {
-      actionText = '🫗 DÖKTÜ';
-    } else if (actionText.includes('İÇTİ') || !actionText) {
-      actionText = '☕ İÇTİ';
-    } else {
-      actionText = actionText.replace(/Bot\s+/g, '');
-    }
-
-    let cupText = recap.cupLabel;
-    if (!cupText) {
-      const sugars = p.roundSugars || {};
-      if (sugars.cyanide > 0) {
-        cupText = (sugars.sweet || 0) > 0 ? `☠️ Siyanür (+${sugars.sweet}🍬)` : '☠️ Siyanür';
-      } else if (sugars.sweet > 0) {
-        cupText = `🍬 ${sugars.sweet} Şeker`;
-      } else {
-        cupText = '☕ Boş';
-      }
-    } else {
-      cupText = cupText.replace(/Tatlı\s+/g, '');
-    }
-
-    let outcomeText = recap.outcomeBadge;
-    let outcomeClass = recap.outcomeType || 'clean';
-    if (!outcomeText) {
-      if (!p.alive) {
-        outcomeText = '💀 ELENDİ';
-        outcomeClass = 'dead';
-      } else if (p.autoPillUsed) {
-        outcomeText = `💊 -${p.pointsLostThisRound || 0}P`;
-        outcomeClass = 'pill';
-      } else if (p.dumpedWasPoisoned) {
-        outcomeText = '😮 KURTULDU';
-        outcomeClass = 'relief';
-      } else if (p.verdict === 'DUMP') {
-        outcomeText = '🤦 HEBA (+0)';
-        outcomeClass = 'regret';
-      } else {
-        outcomeText = `+${p.pointsEarnedThisRound || 0}P`;
-        outcomeClass = 'clean';
-      }
-    }
-
-    const cleanDisplayName = (p.name || '').replace(/^Bot\s+/, '');
-    const displayName = isPlayerMe ? `★ ${cleanDisplayName}` : cleanDisplayName;
-
+  // Leaderboard Sorted by Points
+  const sortedPlayers = [...allPlayers].sort((a, b) => (b.points || 0) - (a.points || 0));
+  const leaderboardHtml = sortedPlayers.map((p, idx) => {
+    const pct = Math.min(100, Math.round(((p.points || 0) / 5) * 100));
     return `
-      <div class="recap-player-row ${isPlayerMe ? 'is-me' : ''} ${!p.alive ? 'is-dead' : ''}">
-        <div class="recap-header-row">
-          <div class="recap-identity">
-            <span class="recap-medal">${medal}</span>
-            <span class="recap-pname ${isPlayerMe ? 'is-me-text' : ''}">${displayName}</span>
-            ${!p.alive ? '<span class="tag-dead">ÖLDÜ</span>' : ''}
-          </div>
-          <div class="recap-score">
-            <span class="recap-pts-total">${p.points || 0}/${targetGoal} 🍬</span>
-            <span class="recap-pts-badge ${outcomeClass}">${outcomeText}</span>
-          </div>
+      <div style="margin-bottom:8px; padding:6px 10px; background:var(--bg-parchment); border:1px solid var(--border-subtle); border-radius:8px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; font-weight:800; font-size:0.85rem;">
+          <span style="display:flex; align-items:center; gap:6px;">
+            <span style="color:var(--text-muted); font-size:0.75rem;">#${idx + 1}</span>
+            <span>${p.isBot ? '🤖 ' : ''}${p.name} ${p.id === myPlayerId ? `<span style="color:var(--btn-brass); font-weight:800;">${L.you}</span>` : ''}</span>
+            ${!p.alive ? '<span style="color:var(--btn-crimson); font-size:0.75rem;">☠️ ÖLÜ</span>' : ''}
+          </span>
+          <span style="color:var(--btn-espresso); font-weight:900;">
+            ${p.points || 0} / 5 🍬
+          </span>
         </div>
-
-        <div class="recap-actions-strip">
-          <div class="recap-strip-cell action">
-            <span class="strip-label">${currentLang === 'tr' ? 'Karar' : 'Action'}:</span>
-            <span class="strip-val">${actionText}</span>
-          </div>
-          <div class="recap-strip-cell cup">
-            <span class="strip-label">${currentLang === 'tr' ? 'Fincan' : 'Cup'}:</span>
-            <span class="strip-val ${cupText.includes('Siyanür') ? 'danger' : ''}">${cupText}</span>
-          </div>
+        <div style="width:100%; height:6px; background:#e0d7c7; border-radius:3px; margin-top:4px; overflow:hidden;">
+          <div style="width:${pct}%; height:100%; background:var(--btn-brass); border-radius:3px;"></div>
         </div>
       </div>
     `;
   }).join('');
 
+  // Round Events List
+  let formattedLogs = [];
+  if (!logs || logs.length === 0) {
+    formattedLogs.push(L.noEventsRound);
+  } else {
+    for (const l of logs) {
+      if (typeof l === 'string') {
+        formattedLogs.push(l);
+      } else if (l && l.type) {
+        if (l.type === 'CUP_SWAP') {
+          formattedLogs.push(L.logCupSwap(l.actor, l.target));
+        } else if (l.type === 'DEATH') {
+          if (l.killers && l.killers.length === 1) {
+            formattedLogs.push(L.logDeathWithKiller(l.name, l.killers[0]));
+          } else if (l.killers && l.killers.length > 1) {
+            formattedLogs.push(L.logDeathMultiKillers(l.name, l.killers));
+          } else {
+            formattedLogs.push(L.logDeath(l.name));
+          }
+        } else if (l.type === 'POISONED_PILL') {
+          if (l.killers && l.killers.length > 0) {
+            formattedLogs.push(L.logPillWithKiller(l.name, l.killers.join(', '), l.pointsLost || 0));
+          } else {
+            formattedLogs.push(L.logPill(l.name, l.pointsLost || 0));
+          }
+        } else if (l.type === 'DRINK_CLEAN') {
+          formattedLogs.push(L.logDrinkClean(l.name, l.pointsEarned || 0));
+        } else if (l.type === 'DUMP') {
+          if (l.wasPoisoned) {
+            formattedLogs.push(L.logDumpRelief(l.name));
+          } else {
+            formattedLogs.push(L.logDumpRegret(l.name));
+          }
+        } else if (l.type === 'WINNER_POINTS') {
+          formattedLogs.push(L.logWinnerPoints(l.winner, l.points));
+        } else if (l.type === 'WINNER_LAST_SURVIVOR') {
+          formattedLogs.push(L.logWinnerSurvivor(l.winner));
+        } else if (l.type === 'MUTUAL_DEATH') {
+          formattedLogs.push(`🍻 ${L.gameOverMutualDesc}`);
+        }
+      }
+    }
+  }
+
+  const logItems = formattedLogs.map(text => `
+    <li style="margin-bottom:6px; font-weight:600; padding-bottom:4px; border-bottom:1px dashed var(--border-subtle); font-size:0.82rem;">
+      ${text}
+    </li>
+  `).join('');
+
   appEl.innerHTML = `
     <div class="app-header">
-      <div style="display:flex; align-items:center; gap:8px;">
-        <span class="app-header-round">${L.round} ${currentRoom.round || 1}</span>
-      </div>
+      <div class="brand-title">${L.round} ${currentRoom.round} ${L.resultsTitle}</div>
       ${renderLangToggle()}
     </div>
 
-    ${renderInventoryBar(me, L, true)}
+    ${renderInventoryBar(me, L)}
 
-    <!-- 1. Kişiye Özel Raund Sonuç Kartı -->
-    ${personalCardHtml}
+    ${swapBannerHtml}
+    ${resultBannerHtml}
+    ${killBountyHtml}
+    ${poisonHitHtml}
 
-    <!-- 2. BÜTÜN MASANIN KARAR VE SKOR BİLANÇOSU (Tek, Net ve Şeffaf Tablo) -->
-    <div class="recap-table-panel">
-      <div class="recap-table-title">
-        <span>📜 ${currentLang === 'tr' ? 'BU RAUNDUN BİLANÇOSU & SKORLAR' : 'ROUND RECAP & STANDINGS'}</span>
-        <span class="recap-target-tag">${currentLang === 'tr' ? 'Hedef: ' + targetGoal + ' Puan' : 'Goal: ' + targetGoal + ' Pts'}</span>
-      </div>
-      <div class="recap-rows-list">
-        ${recapRowsHtml}
+    <!-- Leaderboard -->
+    <div class="card">
+      <span class="input-label">${L.leaderboardTitle}</span>
+      <div style="margin-top:8px;">
+        ${leaderboardHtml}
       </div>
     </div>
 
-    <div style="margin-top:auto; padding-top:6px; width:100%;">
+    <!-- Round Events -->
+    <div class="card">
+      <span class="input-label">${L.roundEvents}</span>
+      <ul style="list-style-type:none; font-size:0.85rem; color:var(--text-main); margin-top:8px; padding:0;">
+        ${logItems}
+      </ul>
+    </div>
+
+    <div style="margin-top:auto; padding-top:12px;">
       ${me.isHost ? `
-        <button class="btn btn-primary btn-advance-round" id="btnNextRound">
-          [ ➜ ${currentLang === 'tr' ? 'SONRAKİ RAUNDU BAŞLAT ▸' : 'START NEXT ROUND ▸'} ]
+        <button class="btn btn-primary" id="btnNextRound">
+          ${L.nextRoundBtn}
         </button>
       ` : `
-        <div style="text-align:center; color:var(--text-muted); font-weight:700; font-family:var(--font-pixel-ui); font-size:0.8rem; padding:12px;">
-          ${currentLang === 'tr' ? 'Kurucunun sonraki raundu başlatması bekleniyor...' : 'Waiting for host to start next round...'}
+        <div style="text-align:center; color:var(--text-muted); font-weight:700; padding:14px;">
+          ${L.waitingNextRound}
         </div>
       `}
     </div>
@@ -2422,8 +1434,6 @@ function renderPhase3() {
       selectedDropTarget = null;
       selectedVerdict = null;
       selectedSwapTarget = null;
-      hasDismissedPoisonCinematic = false;
-      hasDismissedModifierModal = false;
       await nextRound(currentRoom.code);
     };
   }
@@ -2454,24 +1464,14 @@ function renderGameOver() {
       </p>
     </div>
 
-    <div style="margin-top:auto; padding-top:24px; display:flex; flex-direction:column; gap:10px; width:100%;">
-      <button class="btn btn-primary" id="btnRematch" style="font-size:0.8rem; padding:14px;">
-        ⚔️ ${currentLang === 'tr' ? 'RÖVANŞ OYNA (AYNI MASA)' : 'PLAY REMATCH (SAME TABLE)'}
-      </button>
-      <button class="btn btn-neutral" id="btnRestart" style="font-size:0.75rem; padding:10px;">
+    <div style="margin-top:auto; padding-top:24px;">
+      <button class="btn btn-primary" id="btnRestart">
         ${L.restartBtn}
       </button>
     </div>
   `;
 
   attachLangEvents();
-
-  const btnRematch = document.getElementById('btnRematch');
-  if (btnRematch) {
-    btnRematch.onclick = async () => {
-      await rematch(currentRoom.code);
-    };
-  }
 
   document.getElementById('btnRestart').onclick = () => {
     localStorage.removeItem('cot_room_code');
@@ -2572,10 +1572,10 @@ function renderSpectatorScreen() {
         <span style="font-weight:800; font-size:0.9rem;">${p.isBot ? '🤖 ' : ''}${p.name}</span>
         <div style="display:flex; align-items:center; gap:6px;">
           <span style="font-size:0.75rem; font-weight:800; padding:2px 8px; border-radius:6px; background:${hasPoison ? '#fdf2f2' : '#e8f4ed'}; color:${hasPoison ? '#d9534f' : '#1e5e39'}; border:1px solid ${hasPoison ? '#d9534f' : '#1e5e39'};">
-            ${hasPoison ? (currentLang === 'tr' ? `☠️ ${sugars} Şeker (Siyanürlü!)` : `☠️ ${sugars} Sugar (Poisoned!)`) : (currentLang === 'tr' ? `🍬 ${sugars} Şeker (Temiz)` : `🍬 ${sugars} Sugar (Clean)`)}
+            ${hasPoison ? `☠️ ${sugars} Şeker (Siyanürlü!)` : `🍬 ${sugars} Şeker (Temiz)`}
           </span>
           <span style="font-size:0.75rem; font-weight:900; color:var(--btn-brass);">
-            ${p.points || 0}/5 ${currentLang === 'tr' ? 'Puan' : 'Pts'}
+            ${p.points || 0}/5 Puan
           </span>
         </div>
       </div>
@@ -2671,20 +1671,3 @@ function renderSpectatorScreen() {
     renderHome();
   };
 }
-
-// Expose internal rendering and room helpers for test verification
-window.__cot = {
-  DB,
-  renderHome,
-  renderLobby,
-  renderPhase1,
-  renderPhase2,
-  renderPhase3,
-  renderRoundModifierScreen,
-  renderCurrentScreen,
-  getRoom: () => currentRoom,
-  setRoom: (r) => { currentRoom = r; },
-  getMyPlayerId: () => myPlayerId,
-  setMyPlayerId: (id) => { myPlayerId = id; },
-  setVerdict: (v) => { selectedVerdict = v; }
-};
