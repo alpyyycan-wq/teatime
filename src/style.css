@@ -115,42 +115,57 @@ body {
    TOP STATUS & INVENTORY BAR (Matching Ref)
    ========================================= */
 .inventory-pixel-bar {
-  background: #8e9e8a;
-  border: 3px solid #3c4b39;
-  border-radius: 8px;
-  padding: 6px 10px;
+  background: linear-gradient(180deg, #2c160c 0%, #1e0d06 100%);
+  border: 2.5px solid #140804;
+  border-top: 2.5px solid #5a3219;
+  border-bottom: 3px solid #0f0502;
+  border-radius: 6px;
+  padding: 6px 12px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.25), 0 4px 0 #0c080e;
+  box-shadow: inset 0 1px 0 rgba(255, 220, 150, 0.25), inset 0 0 0 1px #422312, 0 4px 0 #0c0603;
   margin-bottom: 12px;
   width: 100%;
+  position: relative;
 }
 
+.inventory-pixel-bar::before,
+.inventory-pixel-bar::after {
+  content: "✦";
+  position: absolute;
+  font-size: 0.55rem;
+  color: #d4af37;
+  text-shadow: 0 1px 0 #000;
+  pointer-events: none;
+}
+.inventory-pixel-bar::before { left: 5px; top: 3px; }
+.inventory-pixel-bar::after { right: 5px; top: 3px; }
+
 .inventory-pixel-bar.is-compact {
-  padding: 3px 8px;
-  margin-bottom: 4px;
+  padding: 4px 8px;
+  margin-bottom: 6px;
 }
 
 .inventory-pixel-bar.is-compact .inv-icon-wrapper {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border-width: 1.5px;
 }
 
 .inventory-pixel-bar.is-compact .pixel-inv-icon {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
 }
 
 .inventory-pixel-bar.is-compact .inv-slot-label {
-  font-size: 0.52rem;
+  font-size: 0.56rem;
   margin-top: 1px;
 }
 
 .inventory-pixel-bar.is-compact .inv-count-badge {
-  font-size: 0.5rem;
-  padding: 0 2px;
+  font-size: 0.52rem;
+  padding: 0 3px;
   bottom: 1px;
   right: 1px;
 }
@@ -160,8 +175,8 @@ body {
 }
 
 .inventory-pixel-bar.is-compact .stars-row {
-  font-size: 0.65rem;
-  gap: 1px;
+  font-size: 0.75rem;
+  gap: 2px;
 }
 
 .inventory-pixel-bar.is-compact .score-text-label {
@@ -171,7 +186,7 @@ body {
 .inv-item-group {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .inv-slot {
@@ -182,16 +197,18 @@ body {
 }
 
 .inv-icon-wrapper {
-  background: #e6decb;
-  border: 2px solid #3c4b39;
-  border-radius: 6px;
-  width: 42px;
-  height: 42px;
+  background: #150a05;
+  border: 2px solid #8c6721;
+  border-top: 2px solid #caa049;
+  border-bottom: 2px solid #573e13;
+  border-radius: 4px;
+  width: 44px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
-  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.4);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.8), 0 1px 0 rgba(245, 214, 138, 0.2);
 }
 
 .inv-count-badge {
@@ -199,23 +216,25 @@ body {
   bottom: 2px;
   right: 2px;
   font-family: var(--font-pixel-heading);
-  font-size: 0.58rem;
+  font-size: 0.6rem;
   font-weight: 800;
-  color: #ffffff;
-  background: #251624;
-  border: 1px solid #100812;
-  border-radius: 2px;
-  padding: 1px 3px;
+  color: #fffbeb;
+  background: #5a2806;
+  border: 1px solid #d97706;
+  border-radius: 3px;
+  padding: 1px 4px;
   line-height: 1;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
 }
 
 .inv-slot-label {
   font-family: var(--font-pixel-ui);
   font-size: 0.68rem;
   font-weight: 800;
-  color: #212d1e;
+  color: #e5cb9b;
   margin-top: 3px;
   text-transform: capitalize;
+  text-shadow: 1px 1px 0 #000;
 }
 
 /* Score Stars Group */
@@ -224,31 +243,33 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding-left: 6px;
+  padding-left: 8px;
 }
 
 .stars-row {
   display: flex;
-  gap: 2px;
+  gap: 3px;
   font-size: 1.15rem;
   line-height: 1;
 }
 
 .star-filled {
-  color: #f7ce46;
-  text-shadow: 1px 1px 0 #33241b;
+  color: #f59e0b;
+  text-shadow: 1px 1px 0 #451a03, 0 0 6px rgba(245, 158, 11, 0.5);
 }
 
 .star-empty {
-  color: #5c5344;
-  opacity: 0.65;
+  color: #4a2818;
+  opacity: 0.85;
+  text-shadow: 1px 1px 0 #120603;
 }
 
 .score-text-label {
   font-family: var(--font-pixel-heading);
   font-size: 0.72rem;
   font-weight: 800;
-  color: #212d1e;
+  color: #fef08a;
+  text-shadow: 1px 1px 0 #281203, 0 0 4px rgba(254, 240, 138, 0.4);
   margin-top: 4px;
 }
 
@@ -483,7 +504,7 @@ body {
 }
 
 .pixel-teacup {
-  width: 66px;
+  width: 72px;
   height: auto;
   display: flex;
   justify-content: center;
@@ -507,15 +528,17 @@ body {
   image-rendering: crisp-edges;
 }
 
-/* Glowing Teal Sugar Badge (Overlapping Front of Saucer) */
+/* Antique Embossed Brass Sugar Badge (Overlapping Front of Saucer) */
 .neon-sugar-badge {
-  background: #081d24;
-  border: 1.5px solid #00e5ff;
-  box-shadow: 0 0 8px rgba(0, 229, 255, 0.6), inset 0 0 4px rgba(0, 229, 255, 0.3);
-  border-radius: 4px;
-  padding: 0 7px;
-  min-width: 22px;
-  height: 16px;
+  background: #241209;
+  border: 1.5px solid #d4af37;
+  border-top: 1.5px solid #fef08a;
+  border-bottom: 2px solid #5a3818;
+  box-shadow: inset 0 1px 0 rgba(255, 235, 160, 0.35), 0 2px 0 #0d0603;
+  border-radius: 3px;
+  padding: 1px 6px;
+  min-width: 24px;
+  height: 18px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -525,18 +548,20 @@ body {
 }
 
 .neon-sugar-badge.my-sugar-badge {
-  border-color: #00e5ff;
-  box-shadow: 0 0 10px rgba(0, 229, 255, 0.8), inset 0 0 5px rgba(0, 229, 255, 0.4);
-  background: #09232c;
+  background: #381a0b;
+  border-color: #ffd700;
+  border-top: 1.5px solid #ffffff;
+  border-bottom: 2px solid #78350f;
+  box-shadow: 0 0 8px rgba(255, 215, 0, 0.6), inset 0 1px 2px rgba(255, 240, 138, 0.5), 0 2px 0 #0d0603;
 }
 
 .neon-sugar-num {
   font-family: var(--font-pixel-heading);
-  font-size: 0.62rem;
+  font-size: 0.65rem;
   font-weight: 800;
-  color: #4ee0e8;
-  line-height: 1.1;
-  text-shadow: 0 0 6px rgba(0, 245, 255, 0.8);
+  color: #fef08a;
+  line-height: 1;
+  text-shadow: 1px 1px 0 #180902;
 }
 
 /* Action Deck Section (Panel 1) */
@@ -566,13 +591,13 @@ body {
 }
 
 .pixel-action-card {
-  background: #c8bcab;
-  border: 2px solid #26160f;
-  border-top: 2px solid #f5eedb;
-  border-left: 2px solid #f5eedb;
-  border-right: 2px solid #7e6e5f;
-  border-bottom: 3px solid #7e6e5f;
-  border-radius: 4px;
+  background: #dfcfb9;
+  border: 2.5px solid #231208;
+  border-top: 2.5px solid #fdfbf7;
+  border-left: 2.5px solid #fdfbf7;
+  border-right: 2.5px solid #7c5c43;
+  border-bottom: 4px solid #573e2b;
+  border-radius: 5px;
   padding: 10px 4px 8px 4px;
   display: flex;
   flex-direction: column;
@@ -580,31 +605,31 @@ body {
   justify-content: center;
   gap: 8px;
   cursor: pointer;
-  box-shadow: 0 4px 0 #120906;
+  box-shadow: 0 4px 0 #100704;
   transition: transform 0.08s ease, box-shadow 0.08s ease, background 0.1s ease;
-  min-height: 88px;
+  min-height: 94px;
   color: #1a0c06;
 }
 
 .pixel-action-card:hover {
-  background: #dcd1c2;
-  border-color: #26160f;
+  background: #ede0ce;
+  border-color: #231208;
 }
 
 .pixel-action-card:active {
   transform: translateY(3px);
-  box-shadow: 0 1px 0 #120906;
+  box-shadow: 0 1px 0 #100704;
 }
 
 .pixel-action-card.active-gold {
-  background: #f2b705;
-  border: 2px solid #361f03;
-  border-top: 2px solid #fef08a;
-  border-left: 2px solid #fef08a;
-  border-right: 2px solid #854d0e;
-  border-bottom: 3px solid #854d0e;
-  color: #160c02;
-  box-shadow: 0 0 14px rgba(242, 183, 5, 0.7), 0 4px 0 #2b1802;
+  background: #f59e0b;
+  border: 2.5px solid #281202;
+  border-top: 2.5px solid #fef08a;
+  border-left: 2.5px solid #fef08a;
+  border-right: 2.5px solid #854d0e;
+  border-bottom: 4px solid #854d0e;
+  color: #180a01;
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.75), 0 4px 0 #1c0b02;
 }
 
 .pixel-action-card.disabled {
@@ -2430,14 +2455,15 @@ body {
 .btn-host-reveal-phase3,
 .btn-host-advance {
   width: 100%;
-  padding: 12px 10px;
+  padding: 10px 10px;
   background: #55275a;
   color: #ffffff;
   border: 2px solid #8e4896;
   font-family: var(--font-pixel-heading);
-  font-size: 0.78rem;
+  font-size: 0.72rem;
+  line-height: 1.35;
   font-weight: 900;
-  letter-spacing: 0.6px;
+  letter-spacing: 0.5px;
   cursor: pointer;
   box-shadow: 0 4px 0 #210c23, 0 7px 0 #0c050e;
   display: flex;
@@ -3724,16 +3750,16 @@ body {
 }
 
 .pixel-inv-icon {
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
   display: block;
 }
 
 .action-pixel-icon {
-  width: 36px;
-  height: 36px;
+  width: 48px;
+  height: 48px;
   object-fit: contain;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
@@ -3741,8 +3767,8 @@ body {
 }
 
 .action-pixel-icon.swap-deck-icon {
-  width: 36px;
-  height: 36px;
+  width: 48px;
+  height: 48px;
 }
 
 .pixel-action-card:not(.active-gold) .action-pixel-icon {
@@ -3838,286 +3864,328 @@ body {
 }
 
 /* ===================================================================
-   PANEL 4: REDESIGNED DYNAMIC POISON REVEAL SCREEN
+   UNIFIED RESULT PHASE: PERSONAL OUTCOME CARD & CASUALTIES DOSSIER
    =================================================================== */
-.poison-cinematic-header {
-  margin-top: 4px;
-  margin-bottom: 8px;
-  text-align: center;
-}
 
-.poison-header-pill {
-  font-family: var(--font-pixel-heading);
-  font-size: 0.95rem;
-  font-weight: 900;
-  color: #ffcf77;
-  letter-spacing: 2px;
-  text-shadow: 2px 2px 0 #000, 0 0 10px rgba(255, 207, 119, 0.6);
-  text-transform: uppercase;
-}
-
-.poison-header-sub {
-  font-family: var(--font-pixel-ui);
-  font-size: 0.65rem;
-  font-weight: 700;
-  color: #c9b4cf;
-  letter-spacing: 1px;
-  margin-top: 2px;
-}
-
-.poison-banner-container {
-  margin: 6px 0 10px;
-  display: flex;
-  justify-content: center;
-}
-
-.poison-alert-box {
+.personal-outcome-card {
   width: 100%;
-  max-width: 340px;
-  padding: 10px 14px;
-  border-radius: 6px;
-  margin-bottom: 12px;
-  text-align: center;
-  box-shadow: 0 4px 0 #0c0410;
-  animation: popInBounce 0.3s ease-out;
-}
-
-.poison-alert-box.is-me {
-  background: linear-gradient(180deg, #3d1010 0%, #200808 100%);
-  border: 2px solid #ff3b3b;
-  box-shadow: 0 0 16px rgba(255, 59, 59, 0.4), 0 4px 0 #150000;
-}
-
-.poison-alert-box.is-other {
-  background: linear-gradient(180deg, #261230 0%, #15091a 100%);
-}
-
-.poison-cinematic-hero-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 100%;
-  margin: 0 0 4px;
-}
-
-.poison-cinematic-hero-img {
-  width: 160px;
-  max-height: 145px;
-  max-width: 90%;
-  object-fit: contain;
-  height: auto;
-  image-rendering: pixelated;
-  image-rendering: crisp-edges;
-  filter: drop-shadow(0 0 14px rgba(46, 204, 113, 0.5));
-}
-
-.poison-unified-card {
-  width: 100%;
-  max-width: 350px;
-  background: #180922;
-  border: 2px solid #ffd700;
-  border-radius: 6px;
+  max-width: 360px;
+  margin: 4px auto 8px;
+  border-radius: 4px;
   padding: 10px 12px;
-  margin-bottom: 12px;
-  box-shadow: 0 4px 0 #07020a, inset 0 0 14px rgba(0,0,0,0.85);
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.85);
+  animation: popInBounce 0.28s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
+  position: relative;
 }
 
-.poison-unified-card.is-me {
-  border-color: #ff4444;
-  box-shadow: 0 4px 0 #07020a, 0 0 16px rgba(255, 68, 68, 0.45), inset 0 0 14px rgba(0,0,0,0.85);
+.personal-outcome-card .p-outcome-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.poison-alert-title {
+.personal-outcome-card .p-outcome-icon {
+  font-size: 1.6rem;
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 0 #000);
+}
+
+.personal-outcome-card .p-outcome-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.personal-outcome-card .p-outcome-title {
   font-family: var(--font-pixel-heading);
-  font-size: 0.72rem;
+  font-size: 0.76rem;
   font-weight: 900;
-  color: #ffd700;
-  text-align: center;
-  text-shadow: 2px 2px 0 #000;
   letter-spacing: 0.5px;
-  margin-bottom: 2px;
+  text-shadow: 2px 2px 0 #000;
 }
 
-.poison-unified-card.is-me .poison-alert-title {
-  color: #ff5252;
-  text-shadow: 0 0 8px rgba(255, 82, 82, 0.6), 2px 2px 0 #000;
-}
-
-.poison-alert-sub {
+.personal-outcome-card .p-outcome-subtitle {
   font-family: var(--font-pixel-ui);
   font-size: 0.65rem;
-  color: #e5d8c8;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.personal-outcome-card .p-outcome-badge {
+  font-family: var(--font-pixel-heading);
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  padding: 4px 8px;
+  border-radius: 3px;
   text-align: center;
-  font-weight: 700;
-  line-height: 1.35;
-  margin-bottom: 4px;
+  margin-top: 2px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 2px 0 rgba(0, 0, 0, 0.6);
 }
 
-.poison-reveal-badges {
-  display: flex;
-  gap: 8px;
+/* Card Themes */
+/* 1. Fatal Poisoning */
+.personal-outcome-card.fatal {
+  background: #23080b;
+  border: 2px solid #dc2626;
+  box-shadow: 0 4px 0 #100204, 0 0 12px rgba(220, 38, 38, 0.35);
+}
+.personal-outcome-card.fatal .p-outcome-title {
+  color: #f87171;
+  text-shadow: 0 0 8px rgba(239, 68, 68, 0.6), 2px 2px 0 #000;
+}
+.personal-outcome-card.fatal .p-outcome-subtitle {
+  color: #fecaca;
+}
+.personal-outcome-card.fatal .p-outcome-badge {
+  background: #450a0a;
+  border: 1px solid #ef4444;
+  color: #fee2e2;
+}
+
+/* 2. Saved by Antidote Pill */
+.personal-outcome-card.pill-saved {
+  background: #261605;
+  border: 2px solid #d97706;
+  box-shadow: 0 4px 0 #130a02, 0 0 10px rgba(217, 119, 6, 0.3);
+}
+.personal-outcome-card.pill-saved .p-outcome-title {
+  color: #fcd34d;
+}
+.personal-outcome-card.pill-saved .p-outcome-subtitle {
+  color: #fde68a;
+}
+.personal-outcome-card.pill-saved .p-outcome-badge {
+  background: #451a03;
+  border: 1px solid #f59e0b;
+  color: #fef3c7;
+}
+
+/* 3. Successful Assassin */
+.personal-outcome-card.assassin {
+  background: #1c1906;
+  border: 2px solid #eab308;
+  box-shadow: 0 4px 0 #0d0c03, 0 0 12px rgba(234, 179, 8, 0.35);
+}
+.personal-outcome-card.assassin .p-outcome-title {
+  color: #fef08a;
+}
+.personal-outcome-card.assassin .p-outcome-subtitle {
+  color: #fef9c3;
+}
+.personal-outcome-card.assassin .p-outcome-badge {
+  background: #422006;
+  border: 1px solid #eab308;
+  color: #fef08a;
+}
+
+/* 4. Dump Relief */
+.personal-outcome-card.relief {
+  background: #081d24;
+  border: 2px solid #0284c7;
+  box-shadow: 0 4px 0 #040e12;
+}
+.personal-outcome-card.relief .p-outcome-title {
+  color: #7dd3fc;
+}
+.personal-outcome-card.relief .p-outcome-subtitle {
+  color: #bae6fd;
+}
+.personal-outcome-card.relief .p-outcome-badge {
+  background: #0c4a6e;
+  border: 1px solid #38bdf8;
+  color: #e0f2fe;
+}
+
+/* 5. Dump Regret */
+.personal-outcome-card.regret {
+  background: #21130d;
+  border: 2px solid #ea580c;
+  box-shadow: 0 4px 0 #0d0805;
+}
+.personal-outcome-card.regret .p-outcome-title {
+  color: #fdba74;
+}
+.personal-outcome-card.regret .p-outcome-subtitle {
+  color: #fed7aa;
+}
+.personal-outcome-card.regret .p-outcome-badge {
+  background: #431407;
+  border: 1px solid #f97316;
+  color: #ffedd5;
+}
+
+/* 6. Clean Tea Victory */
+.personal-outcome-card.clean {
+  background: #061f12;
+  border: 2px solid #16a34a;
+  box-shadow: 0 4px 0 #030e08;
+}
+.personal-outcome-card.clean .p-outcome-title {
+  color: #86efac;
+}
+.personal-outcome-card.clean .p-outcome-subtitle {
+  color: #bbf7d0;
+}
+.personal-outcome-card.clean .p-outcome-badge {
+  background: #14532d;
+  border: 1px solid #22c55e;
+  color: #dcfce7;
+}
+
+/* 7. Spectator / Neutral */
+.personal-outcome-card.spectator,
+.personal-outcome-card.neutral {
+  background: #19141d;
+  border: 2px solid #6b7280;
+  box-shadow: 0 4px 0 #0b090d;
+}
+.personal-outcome-card.spectator .p-outcome-title,
+.personal-outcome-card.neutral .p-outcome-title {
+  color: #d1d5db;
+}
+.personal-outcome-card.spectator .p-outcome-subtitle,
+.personal-outcome-card.neutral .p-outcome-subtitle {
+  color: #9ca3af;
+}
+.personal-outcome-card.spectator .p-outcome-badge,
+.personal-outcome-card.neutral .p-outcome-badge {
+  background: #374151;
+  border: 1px solid #9ca3af;
+  color: #f3f4f6;
+}
+
+/* ===================================================================
+   TABLE CASUALTIES PANEL (Masadaki Diğer Kayıplar)
+   =================================================================== */
+.parlor-table-casualties-panel {
   width: 100%;
-  justify-content: center;
+  max-width: 360px;
+  margin: 0 auto 8px;
+  background: #15091a;
+  border: 1.5px solid #6b21a8;
+  border-radius: 4px;
+  padding: 8px 10px;
+  box-shadow: 0 3px 0 #0a040d;
 }
 
-.poison-badge-card {
-  flex: 1;
-  min-width: 0;
-  background: #120519;
-  border-radius: 5px;
-  padding: 6px 8px;
+.casualties-panel-header {
+  font-family: var(--font-pixel-heading);
+  font-size: 0.62rem;
+  font-weight: 900;
+  color: #d8b4fe;
+  letter-spacing: 0.5px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #3b145a;
+  padding-bottom: 4px;
+  margin-bottom: 6px;
+}
+
+.casualties-panel-header .badge-count {
+  background: #581c87;
+  color: #f3e8ff;
+  font-size: 0.55rem;
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid #a855f7;
+}
+
+.casualties-grid {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  box-shadow: 0 3px 0 #07020a;
+  gap: 5px;
 }
 
-.poison-badge-card.victim {
-  border: 2px solid #ff5252;
-  background: #260a12;
-}
-
-.poison-badge-card.killer {
-  border: 2px solid #ffd700;
-  background: #2b1f09;
-}
-
-.poison-badge-card .badge-header {
+.casualty-entry {
   display: flex;
   align-items: center;
-  gap: 4px;
-  margin-bottom: 4px;
+  gap: 8px;
+  background: #200d28;
+  border-radius: 3px;
+  padding: 5px 8px;
+  border: 1px solid #4a1964;
 }
 
-.badge-icon-img {
-  width: 20px;
-  height: 20px;
-  image-rendering: pixelated;
+.casualty-entry.fatal {
+  border-color: #991b1b;
+  background: #23080b;
+}
+
+.casualty-entry.pill-saved {
+  border-color: #b45309;
+  background: #241406;
+}
+
+.casualty-entry .c-entry-icon {
+  font-size: 1rem;
   flex-shrink: 0;
 }
 
-.badge-role-label {
-  font-family: var(--font-pixel-heading);
+.casualty-entry .c-entry-body {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-pixel-ui);
+}
+
+.casualty-entry .c-entry-name {
+  font-size: 0.65rem;
+  color: #f3e8ff;
+}
+
+.casualty-entry .c-entry-status {
   font-size: 0.55rem;
+  padding: 1px 4px;
+  border-radius: 2px;
+  margin-left: 3px;
   font-weight: 800;
-  letter-spacing: 0.8px;
 }
 
-.poison-badge-card.victim .badge-role-label {
-  color: #ff7b7b;
+.casualty-entry .c-entry-status.saved {
+  background: #78350f;
+  color: #fde68a;
 }
 
-.poison-badge-card.killer .badge-role-label {
-  color: #ffd700;
+.casualty-entry .c-entry-status.dead {
+  background: #7f1d1d;
+  color: #fecaca;
 }
 
-.badge-player-name {
-  font-family: var(--font-pixel-heading);
-  font-size: 0.64rem;
-  font-weight: 900;
-  color: #ffffff;
-  text-shadow: 1px 1px 0 #000;
-  margin-bottom: 4px;
-  text-align: center;
-  word-break: break-word;
-  line-height: 1.25;
-  max-width: 100%;
-}
-
-.badge-outcome-tag {
-  font-family: var(--font-pixel-ui);
+.casualty-entry .c-entry-killer {
   font-size: 0.58rem;
-  font-weight: 800;
-  padding: 2px 4px;
-  border-radius: 3px;
-  text-align: center;
-  width: 100%;
+  color: #baa4bd;
+  margin-top: 1px;
 }
 
-.badge-outcome-tag.pill-saved {
-  background: #39134a;
-  color: #e5b3ff;
-  border: 1px solid #9c4edd;
+.casualty-entry .tag-bounty {
+  font-size: 0.52rem;
+  background: #3b2808;
+  color: #fef08a;
+  border: 1px solid #ca8a04;
+  padding: 0 3px;
+  border-radius: 2px;
+  margin-left: 2px;
 }
 
-.badge-outcome-tag.eliminated {
-  background: #4a1313;
-  color: #ff9e9e;
-  border: 1px solid #ff4444;
-}
-
-.badge-outcome-tag.killer-bounty {
-  background: #38280b;
-  color: #ffd700;
-  border: 1px solid #d4af37;
-}
-
-.poison-story-box {
-  background: rgba(10, 3, 15, 0.85);
-  border: 1px solid #57335e;
-  border-radius: 4px;
-  padding: 8px 10px;
-  margin-top: 2px;
-}
-
-.poison-story-title {
+.casualty-entry .c-entry-pts {
   font-family: var(--font-pixel-heading);
-  font-size: 0.6rem;
-  font-weight: 800;
-  color: #ffcf77;
-  letter-spacing: 0.8px;
-  margin-bottom: 4px;
-  text-align: center;
+  font-size: 0.65rem;
+  font-weight: 900;
+  flex-shrink: 0;
+  text-shadow: 1px 1px 0 #000;
 }
 
-.poison-story-content {
-  font-family: var(--font-pixel-ui);
-  font-size: 0.68rem;
-  font-weight: 600;
-  color: #f2e6d8;
-  line-height: 1.4;
-  text-align: center;
+.casualty-entry .c-entry-pts.neg {
+  color: #f87171;
 }
 
-.poison-multi-victim-sub {
-  font-family: var(--font-pixel-ui);
-  font-size: 0.62rem;
-  color: #ff8888;
-  font-weight: 700;
-  margin-top: 5px;
-  border-top: 1px dashed rgba(255, 100, 100, 0.3);
-  padding-top: 4px;
-  text-align: center;
-}
-
-.btn-poison-proceed {
-  background: #8b1818 !important;
-  border: 2px solid #ff5252 !important;
-  color: #ffffff !important;
-  font-family: var(--font-pixel-heading) !important;
-  font-size: 0.72rem !important;
-  font-weight: 900 !important;
-  letter-spacing: 0.6px !important;
-  padding: 12px 14px !important;
-  box-shadow: 0 4px 0 #3a0808 !important;
-  cursor: pointer;
-  width: 100%;
-  max-width: 350px;
-  white-space: nowrap !important;
-  text-align: center;
-  margin-top: 4px;
-}
-
-.btn-poison-proceed:hover {
-  background: #a82020 !important;
-}
-
-.btn-poison-proceed:active {
-  transform: translateY(2px);
-  box-shadow: 0 2px 0 #3a0808 !important;
+.casualty-entry .c-entry-pts.dead {
+  color: #ef4444;
 }
 
 /* ===================================================================

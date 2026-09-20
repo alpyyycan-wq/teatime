@@ -881,11 +881,6 @@ function renderCurrentScreen() {
   }
 
   if (currentRoom.status === 'GAME_OVER') {
-    if (currentRoom.lastPoisonEvent && !hasDismissedPoisonCinematic) {
-      renderPoisonRevealScreen();
-      renderAuditorWidget();
-      return;
-    }
     renderGameOver();
     renderAuditorWidget();
     return;
@@ -1473,29 +1468,34 @@ function renderPhase1() {
   const me = currentRoom.players[myPlayerId];
   const alivePlayers = Object.values(currentRoom.players).filter(p => p.alive);
   const otherAlive = alivePlayers.filter(p => p.id !== myPlayerId);
+  const allSelectableTargets = [me, ...otherAlive];
   const readyCount = alivePlayers.filter(p => p.ready).length;
   const hasCyanide = (me.cyanide || 0) > 0;
 
-  // Ensure selectedDropTarget is a valid opponent
-  if (!selectedDropTarget || selectedDropTarget === myPlayerId || !otherAlive.some(p => p.id === selectedDropTarget)) {
-    selectedDropTarget = otherAlive.length > 0 ? otherAlive[0].id : null;
+  // Ensure selectedDropTarget is valid (can be self or opponent)
+  if (!selectedDropTarget || !alivePlayers.some(p => p.id === selectedDropTarget)) {
+    selectedDropTarget = otherAlive.length > 0 ? otherAlive[0].id : myPlayerId;
   }
 
-  const targetPlayer = otherAlive.find(p => p.id === selectedDropTarget);
-  const targetPlayerName = targetPlayer ? targetPlayer.name : '';
+  const targetPlayer = alivePlayers.find(p => p.id === selectedDropTarget);
+  const isTargetSelf = (selectedDropTarget === myPlayerId);
+  const targetPlayerName = targetPlayer ? (isTargetSelf ? (currentLang === 'tr' ? 'Kendi Fincanın' : 'Your Cup') : targetPlayer.name) : '';
 
-  // Build Opponent Target Selection Cards (3-Column Grid)
-  const targetCardsHtml = otherAlive.map((p, idx) => {
+  // Build Target Selection Cards (3-Column Grid, including Self Cup)
+  const targetCardsHtml = allSelectableTargets.map((p, idx) => {
     const isSelected = (selectedDropTarget === p.id);
+    const isSelf = (p.id === myPlayerId);
     const palette = getPlayerCupPalette(p, idx);
+    const cardTitle = isSelf ? (currentLang === 'tr' ? '⭐ KENDİ FİNCANIN' : '⭐ YOUR CUP') : (p.isBot ? `🤖 ${p.name}` : p.name);
     return `
-      <div class="player-target-card-3col ${isSelected ? 'selected' : ''}" data-target-id="${p.id}">
+      <div class="player-target-card-3col ${isSelected ? 'selected' : ''} ${isSelf ? 'self-target-card' : ''}" data-target-id="${p.id}">
         ${isSelected ? '<span class="target-check-badge">✓</span>' : ''}
+        ${isSelf ? '<span class="target-self-badge">SEN</span>' : ''}
         <div class="target-cup-container">
           ${renderColoredTeacup(palette, (idx + 1).toString())}
         </div>
-        <div class="target-card-player-name" title="${p.name}">
-          ${p.isBot ? '🤖 ' : ''}${p.name}
+        <div class="target-card-player-name" title="${cardTitle}">
+          ${cardTitle}
         </div>
         <div class="target-card-score-box">
           <span class="score-val">${p.points || 0}</span><span class="score-max">/8</span> <span class="score-icon">🍬</span>
@@ -1503,6 +1503,22 @@ function renderPhase1() {
       </div>
     `;
   }).join('');
+
+  // Contextual Action Button Text
+  let confirmBtnText = '';
+  if (isTargetSelf) {
+    if (selectedDropType === 'CYANIDE') {
+      confirmBtnText = currentLang === 'tr' ? '💣 KARARIMI ONAYLA: KENDİ FİNCANINA SİYANÜR KOY (Tuzak / Truva Blöfü)' : '💣 CONFIRM: POISON OWN CUP (Trap / Trojan Bluff)';
+    } else {
+      confirmBtnText = currentLang === 'tr' ? '🍬 KARARIMI ONAYLA: KENDİ ÇAYINA ŞEKER AT (+1 Puan)' : '🍬 CONFIRM: SWEETEN OWN CUP (+1 Pt Target)';
+    }
+  } else {
+    if (selectedDropType === 'CYANIDE') {
+      confirmBtnText = currentLang === 'tr' ? `☠️ KARARIMI ONAYLA: ${targetPlayerName}'A ZEHİR AT` : `☠️ CONFIRM: POISON ${targetPlayerName}'S TEA`;
+    } else {
+      confirmBtnText = currentLang === 'tr' ? `🍬 KARARIMI ONAYLA: ${targetPlayerName}'A ŞEKER VER (+1 Siyanür Stoğu)` : `🍬 CONFIRM: SWEETEN ${targetPlayerName} (+1 Cyanide Reload)`;
+    }
+  }
 
   appEl.innerHTML = `
     <div class="app-header">
@@ -1531,7 +1547,9 @@ function renderPhase1() {
       <!-- Target Opponent Selection (3-col Grid) -->
       <div>
         <label class="input-label" style="text-align:center; display:block; margin-bottom:6px; font-size:0.8rem;">
-          ${L.targetLabel}
+          ${isTargetSelf && selectedDropType === 'CYANIDE' 
+            ? (currentLang === 'tr' ? '⚠️ Kendi fincanına tuzak kuruyorsun! 2. adımda bu fincanı başkasına iteleyebilir veya dökebilirsin.' : '⚠️ You are trapping your own cup! You can swap it or dump it in step 2.')
+            : L.targetLabel}
         </label>
         <div class="player-target-grid-3col">
           ${targetCardsHtml}
@@ -1542,16 +1560,15 @@ function renderPhase1() {
     <div style="margin-top:auto; padding-top:10px; display:flex; flex-direction:column; gap:8px;">
       ${!me.ready ? `
         <button class="btn btn-primary btn-confirm-action" id="btnSubmitPhase1" style="padding:14px 10px; font-size:0.82rem; font-weight:900;">
-          ${targetPlayerName ? (
-            selectedDropType === 'SWEET' ? (currentLang === 'tr' ? `🍬 KARARIMI ONAYLA: ${targetPlayerName}'A ŞEKER AT` : `🍬 CONFIRM: SWEETEN ${targetPlayerName}'S TEA`) :
-            (currentLang === 'tr' ? `☠️ KARARIMI ONAYLA: ${targetPlayerName}'A ZEHİR AT` : `☠️ CONFIRM: POISON ${targetPlayerName}'S TEA`)
-          ) : (currentLang === 'tr' ? '⚔️ KARARIMI ONAYLA / HAZIRIM' : '⚔️ CONFIRM DECISION / READY')}
+          ${confirmBtnText}
         </button>
       ` : `
         <div class="phase-decision-locked-banner">
           <span class="locked-icon">✓</span>
           <div class="locked-details">
-            <div class="locked-title">${currentLang === 'tr' ? `KARARIN KİLİTLENDİ: ${targetPlayerName}'A ${selectedDropType === 'CYANIDE' ? 'ZEHİR' : 'ŞEKER'} ATTIN` : `DECISION LOCKED: ${selectedDropType} ➔ ${targetPlayerName}`}</div>
+            <div class="locked-title">${currentLang === 'tr' 
+              ? `KARARIN KİLİTLENDİ: ${targetPlayerName}'A ${selectedDropType === 'CYANIDE' ? 'ZEHİR' : 'ŞEKER'} ATTIN` 
+              : `DECISION LOCKED: ${selectedDropType} ➔ ${targetPlayerName}`}</div>
             <div class="locked-sub">${L.waitingOthers(readyCount, alivePlayers.length)}</div>
           </div>
         </div>
@@ -1579,9 +1596,6 @@ function renderPhase1() {
 
   document.getElementById('btnDropSweet').onclick = () => {
     selectedDropType = 'SWEET';
-    if (!selectedDropTarget || selectedDropTarget === myPlayerId) {
-      selectedDropTarget = otherAlive.length > 0 ? otherAlive[0].id : null;
-    }
     renderPhase1();
   };
 
@@ -1589,9 +1603,6 @@ function renderPhase1() {
   if (btnDropCyanide && hasCyanide) {
     btnDropCyanide.onclick = () => {
       selectedDropType = 'CYANIDE';
-      if (!selectedDropTarget || selectedDropTarget === myPlayerId) {
-        selectedDropTarget = otherAlive.length > 0 ? otherAlive[0].id : null;
-      }
       renderPhase1();
     };
   }
@@ -1610,10 +1621,6 @@ function renderPhase1() {
       const target = selectedDropTarget;
       if (!target) {
         return alert(currentLang === 'tr' ? "Lütfen şekeri atmak istediğin fincanı seç!" : "Please choose whose cup to drop the sugar into!");
-      }
-
-      if (target === myPlayerId) {
-        return alert(currentLang === 'tr' ? "Kendi fincanına şeker atamazsın! Bir rakip seçmelisin." : "You cannot drop sugar into your own cup! Choose an opponent.");
       }
 
       try {
@@ -1953,172 +1960,13 @@ function renderPhase2() {
 }
 
 // -------------------------------------------------------------------
-// 6. DRAMATIC POISON REVEAL SCREEN (POISONED! - PANEL 4)
-// -------------------------------------------------------------------
-function renderPoisonRevealScreen() {
-  const L = getL();
-  const me = currentRoom.players ? currentRoom.players[myPlayerId] : null;
-  const ev = currentRoom.lastPoisonEvent || {};
-  const allVictims = ev.allVictims || [ev];
-  // If the current player is one of the victims, show their own perspective!
-  const myVictimEv = allVictims.find(v => v.victimId === myPlayerId || v.victimName === me?.name);
-  const activeEv = myVictimEv || ev;
-  const victimName = activeEv.victimName || (currentLang === 'tr' ? 'Kurban' : 'Victim');
-  const killerName = activeEv.killerName || (currentLang === 'tr' ? 'Bilinmeyen Katil' : 'Unknown Killer');
-  const ptsLost = activeEv.pointsLost ?? (activeEv.isPillSaved ? 2 : 0);
-  const bounty = activeEv.bountyAwarded || (activeEv.isPillSaved ? 1 : 2);
-  const isPillSaved = !!activeEv.isPillSaved;
-  const isMeVictim = (me && activeEv.victimId === myPlayerId) || (me && victimName === me.name);
-
-  // Play audio
-  playPoisonSound();
-
-  // Multi-victim notice if more than 1 player drank cyanide
-  let multiVictimNotice = '';
-  const otherVictims = allVictims.filter(v => v.victimId !== activeEv.victimId);
-  if (otherVictims.length > 0) {
-    const names = otherVictims.map(v => v.victimName).join(', ');
-    multiVictimNotice = `
-      <div class="poison-multi-victim-sub">
-        ⚠️ ${currentLang === 'tr' 
-          ? `Masadaki Diğer Olay: <strong>${names}</strong> de bu raund siyanür içti!` 
-          : `Also at the table: <strong>${names}</strong> also drank cyanide this round!`}
-      </div>
-    `;
-  }
-
-  // Story description
-  let storyText = '';
-  if (isMeVictim) {
-    if (isPillSaved) {
-      storyText = currentLang === 'tr'
-        ? `${killerName}, senin fincanına gizlice siyanür bıraktı ve sen çayını içtin! Gizli panzehir hapın hayatını kurtardı (-${ptsLost} Puan kaybettin, ${killerName} +${bounty} puan kazandı).`
-        : `${killerName}, senin fincanına gizlice siyanür bıraktı ve sen şüphelenmeden çayını içtin! Zehirlenerek elendin (${killerName} +${bounty} Suikast Puanı kazandı).`;
-    } else {
-      storyText = currentLang === 'tr'
-        ? `${killerName}, senin fincanına gizlice siyanür bıraktı ve sen şüphelenmeden çayını içtin! Zehirlenerek elendin (${killerName} +${bounty} Suikast Puanı kazandı).`
-        : `${killerName} secretly slipped cyanide into your cup and you drank it unsuspectingly! You were fatally poisoned and eliminated (${killerName} +${bounty} Assassin Bounty).`;
-    }
-  } else {
-    if (isPillSaved) {
-      storyText = currentLang === 'tr'
-        ? `${killerName}, ${victimName}'ın fincanına gizlice siyanür bıraktı! ${victimName} çayını içti fakat gizli panzehir hapı hayatını kurtardı (-${ptsLost} Puan kaybetti, ${killerName} +${bounty} puan kazandı).`
-        : `${killerName} secretly slipped cyanide into ${victimName}'s cup! ${victimName} drank it but an antidote pill saved their life (-${ptsLost} Pts, ${killerName} +${bounty} pts).`;
-    } else {
-      storyText = currentLang === 'tr'
-        ? `${killerName}, ${victimName}'ın fincanına gizlice siyanür bıraktı ve ${victimName} şüphelenmeden çayını içti! ${victimName} zehirlenerek elendi (${killerName} +${bounty} Suikast Puanı kazandı).`
-        : `${killerName} secretly slipped cyanide into ${victimName}'s cup and ${victimName} drank it unsuspectingly! ${victimName} was eliminated (${killerName} +${bounty} Assassin Bounty).`;
-    }
-  }
-
-  appEl.innerHTML = `
-    <div style="display:flex; justify-content:flex-end; width:100%;">
-      ${renderLangToggle()}
-    </div>
-
-    <div class="poisoned-cinematic-screen">
-      <!-- 1. Atmospheric Victorian Header -->
-      <div class="poison-cinematic-header">
-        <div class="poison-header-pill">☠️ ${currentLang === 'tr' ? 'VİKTORYA CİNAYETİ' : 'VICTORIAN MURDER'} ☠️</div>
-        <div class="poison-header-sub">${currentLang === 'tr' ? 'ÖLÜMCÜL SİYANÜR İFŞA OLDU' : 'FATAL CYANIDE REVEALED'}</div>
-      </div>
-
-      <!-- 2. Authentic 16-Bit Flaming Skull & 3D Purple Ribbon Banner (POISONED!) -->
-      <div class="poison-cinematic-hero-container">
-        <img src="${ASSET_IMAGES.poison_cinematic_full}" alt="POISONED!" class="poison-cinematic-hero-img" draggable="false" />
-      </div>
-
-      <!-- 3. Unified Victorian Murder Dossier Card -->
-      <div class="poison-unified-card ${isMeVictim ? 'is-me' : 'is-other'}">
-        <div class="poison-alert-title">
-          ${isMeVictim 
-            ? `💀 ${currentLang === 'tr' ? 'DİKKAT: ÇAYINDA SİYANÜR VARDI!' : 'BEWARE: YOUR CUP HAD CYANIDE!'}`
-            : `💀 ${currentLang === 'tr' ? 'MASADA BİR CİNAYET İŞLENDİ!' : 'A MURDER OCCURRED AT THE TABLE!'}`}
-        </div>
-        <div class="poison-alert-sub">
-          ${isMeVictim
-            ? (isPillSaved 
-                ? (currentLang === 'tr' ? 'Panzehir hapın sayesinde ölümden döndün!' : 'Your antidote pill saved you from death!')
-                : (currentLang === 'tr' ? 'Siyanürlü çayı içtin ve masadan elendin!' : 'You drank cyanide and were eliminated!'))
-            : (isPillSaved
-                ? (currentLang === 'tr' ? `${victimName} siyanür içti fakat panzehir ile kurtuldu!` : `${victimName} drank cyanide but was saved by antidote!`)
-                : (currentLang === 'tr' ? `${victimName} siyanür içerek masadan elendi!` : `${victimName} drank cyanide and was eliminated!`))}
-        </div>
-
-        <!-- Dynamic Side-by-Side Badges: Kurban vs Katil -->
-        <div class="poison-reveal-badges">
-          <!-- Kurban Kartı -->
-          <div class="poison-badge-card victim">
-            <div class="badge-header">
-              <img src="${ASSET_IMAGES.badge_victim}" alt="Victim" class="badge-icon-img" draggable="false" />
-              <span class="badge-role-label">${currentLang === 'tr' ? 'KURBAN' : 'VICTIM'}</span>
-            </div>
-            <div class="badge-player-name">${victimName}</div>
-            <div class="badge-outcome-tag ${isPillSaved ? 'pill-saved' : 'eliminated'}">
-              ${isPillSaved 
-                ? `💊 ${currentLang === 'tr' ? `Panzehir Korudu (-${ptsLost} Puan)` : `Pill Saved (-${ptsLost} Pts)`}` 
-                : `☠️ ${currentLang === 'tr' ? 'Elendi (Öldü)' : 'Eliminated'}`}
-            </div>
-          </div>
-
-          <!-- Katil Kartı -->
-          <div class="poison-badge-card killer">
-            <div class="badge-header">
-              <img src="${ASSET_IMAGES.badge_killer}" alt="Killer" class="badge-icon-img" draggable="false" />
-              <span class="badge-role-label">${currentLang === 'tr' ? 'KATİL' : 'KILLER'}</span>
-            </div>
-            <div class="badge-player-name">${killerName}</div>
-            <div class="badge-outcome-tag killer-bounty">
-              🎯 +${bounty} ${currentLang === 'tr' ? 'Suikast Puanı' : 'Assassin Bounty'}
-            </div>
-          </div>
-        </div>
-
-        <!-- Olay Açıklaması (Narrative Story Box) -->
-        <div class="poison-story-box">
-          <div class="poison-story-title">📜 ${currentLang === 'tr' ? 'CİNAYETİN AYRINTILARI' : 'CRIME DETAILS'}</div>
-          <div class="poison-story-content">${storyText}</div>
-          ${multiVictimNotice}
-        </div>
-      </div>
-
-      <!-- Action Button -->
-      <button class="btn btn-primary btn-poison-proceed" id="btnPoisonContinue">
-        [ ➜ ${currentLang === 'tr' ? 'SONUÇLARA DEVAM ET' : 'CONTINUE TO RESULTS'} ]
-      </button>
-    </div>
-  `;
-
-  attachLangEvents();
-
-  const handleDismiss = () => {
-    hasDismissedPoisonCinematic = true;
-    if (currentRoom.status === 'GAME_OVER') {
-      renderGameOver();
-    } else {
-      renderPhase3();
-    }
-  };
-
-  const btnContinue = document.getElementById('btnPoisonContinue');
-  if (btnContinue) btnContinue.onclick = handleDismiss;
-}
-
-// -------------------------------------------------------------------
-// 7. PHASE 3: SONUÇ, PUANLAR VE ELEMELER (RESULT PHASE - PANEL 3)
+// 7. PHASE 3: SONUÇ, PUANLAR VE ELEMELER (UNIFIED RESULT PHASE - PANEL 3)
 // -------------------------------------------------------------------
 function renderPhase3() {
   const L = getL();
   const me = currentRoom.players[myPlayerId];
   const allPlayers = Object.values(currentRoom.players || {});
   const targetGoal = currentRoom.targetPoints || 8;
-
-  // Dramatic Poison Reveal (Panel 4) if ANY player was poisoned this round!
-  const poisonEv = currentRoom.lastPoisonEvent;
-  if (poisonEv && !hasDismissedPoisonCinematic) {
-    renderPoisonRevealScreen();
-    return;
-  }
 
   // Play audio once
   if (!hasPlayedPhase3Sound) {
@@ -2134,30 +1982,177 @@ function renderPhase3() {
     }
   }
 
-  // Personal Outcome Catharsis Banner
-  let outcomeBannerHtml = '';
-  if (me.dumpedWasPoisoned) {
-    outcomeBannerHtml = `
-      <div class="personal-outcome-banner relief">
-        😮‍💨 ${L.dumpReliefTitle} ${L.dumpReliefDesc}
-      </div>
-    `;
-  } else if (me.verdict === 'DUMP' && !me.dumpedWasPoisoned) {
-    outcomeBannerHtml = `
-      <div class="personal-outcome-banner regret">
-        🤦‍♂️ ${L.dumpRegretTitle} ${L.dumpRegretDesc(me.dumpedSweetCount || 0)}
+  // 1. Prominent Personal Outcome Card (Kişiye Özel Raund Sonucu)
+  let personalCardHtml = '';
+  const myNemesis = me.nemesis || (currentLang === 'tr' ? 'Gizemli Bir Katil' : 'A Mysterious Killer');
+  const pointsLost = me.pointsLostThisRound ?? (me.autoPillUsed ? 2 : 0);
+  const pointsEarned = me.pointsEarnedThisRound ?? 0;
+
+  if (!me.alive && me.lastDrank && (me.roundSugars?.cyanide || 0) > 0) {
+    // 💀 Fatal Poisoning (Zehirlendi ve Elendi)
+    personalCardHtml = `
+      <div class="personal-outcome-card fatal">
+        <div class="p-outcome-header">
+          <span class="p-outcome-icon">💀</span>
+          <div class="p-outcome-titles">
+            <div class="p-outcome-title">${currentLang === 'tr' ? 'ZEHİRLENDİN VE ELENDİN!' : 'FATALLY POISONED!'}</div>
+            <div class="p-outcome-subtitle">${currentLang === 'tr' ? `${myNemesis}'ın fincanına bıraktığı siyanür seni yakaladı. Masadan elendin!` : `${myNemesis} slipped cyanide into your cup. You were eliminated!`}</div>
+          </div>
+        </div>
+        <div class="p-outcome-badge fatal">
+          ☠️ ${currentLang === 'tr' ? 'MASADAN ELENDİN (-' + pointsLost + ' PUAN)' : 'ELIMINATED (-' + pointsLost + ' PTS)'}
+        </div>
       </div>
     `;
   } else if (me.autoPillUsed) {
-    outcomeBannerHtml = `
-      <div class="personal-outcome-banner pill">
-        💊 ${L.autoPillTitle}
+    // 💊 Saved by Antidote Pill
+    personalCardHtml = `
+      <div class="personal-outcome-card pill-saved">
+        <div class="p-outcome-header">
+          <span class="p-outcome-icon">💊</span>
+          <div class="p-outcome-titles">
+            <div class="p-outcome-title">${currentLang === 'tr' ? 'PANZEHİR HAYATINI KURTARDI!' : 'ANTIDOTE SAVED YOUR LIFE!'}</div>
+            <div class="p-outcome-subtitle">${currentLang === 'tr' ? `${myNemesis} çayına siyanür atmıştı! Panzehir hapın sayesinde ölümden döndün.` : `${myNemesis} poisoned your tea! Your antidote pill saved you from death.`}</div>
+          </div>
+        </div>
+        <div class="p-outcome-badge pill-saved">
+          🛡️ ${currentLang === 'tr' ? 'HAYATTASIN (-' + pointsLost + ' PUAN CEZA)' : 'SURVIVED (-' + pointsLost + ' PTS PENALTY)'}
+        </div>
       </div>
     `;
-  } else if (me.lastDrank && me.pointsEarnedThisRound > 0) {
-    outcomeBannerHtml = `
-      <div class="personal-outcome-banner clean">
-        🍬 ${L.survivedTitleClean(me.pointsEarnedThisRound)}
+  } else if ((me.killsThisRound || 0) > 0 || (me.poisonHitsThisRound || 0) > 0) {
+    // 🎯 Successful Assassin
+    const isFatalKill = (me.killsThisRound || 0) > 0;
+    personalCardHtml = `
+      <div class="personal-outcome-card assassin">
+        <div class="p-outcome-header">
+          <span class="p-outcome-icon">🎯</span>
+          <div class="p-outcome-titles">
+            <div class="p-outcome-title">${currentLang === 'tr' ? 'SUİKAST BAŞARILI!' : 'ASSASSINATION SUCCESSFUL!'}</div>
+            <div class="p-outcome-subtitle">${currentLang === 'tr' 
+              ? (isFatalKill ? 'Hazırladığın siyanür kurbanını avladı ve masadan eledi!' : 'Hedefine siyanür içirdin, panzehir hapını zorladı!') 
+              : (isFatalKill ? 'Your cyanide eliminated your victim from the table!' : 'Your cyanide hit the target, forcing their antidote!')}</div>
+          </div>
+        </div>
+        <div class="p-outcome-badge assassin">
+          🎯 +${pointsEarned} ${currentLang === 'tr' ? 'SUİKAST PUANI' : 'ASSASSIN BOUNTY'}${isFatalKill ? ' 👑' : ''}
+        </div>
+      </div>
+    `;
+  } else if (me.dumpedWasPoisoned) {
+    // 🛡️ Great Intuition (Dumped Cyanide)
+    personalCardHtml = `
+      <div class="personal-outcome-card relief">
+        <div class="p-outcome-header">
+          <span class="p-outcome-icon">🛡️</span>
+          <div class="p-outcome-titles">
+            <div class="p-outcome-title">${currentLang === 'tr' ? 'BÜYÜK KURTULUŞ!' : 'HEROIC INTUITION!'}</div>
+            <div class="p-outcome-subtitle">${currentLang === 'tr' ? 'Sezgilerin hayatını kurtardı: Çayını döktün ve fincandaki gizli siyanürden kaçtın!' : 'Your instincts saved you: You dumped the cup and dodged lethal cyanide!'}</div>
+          </div>
+        </div>
+        <div class="p-outcome-badge relief">
+          😮‍💨 ${currentLang === 'tr' ? 'ZEHİRDEN KURTULDUN (0 PUAN)' : 'SAVED FROM CYANIDE (0 PTS)'}
+        </div>
+      </div>
+    `;
+  } else if (me.verdict === 'DUMP' && !me.dumpedWasPoisoned) {
+    // 🫗 Regret (Dumped Clean Tea)
+    personalCardHtml = `
+      <div class="personal-outcome-card regret">
+        <div class="p-outcome-header">
+          <span class="p-outcome-icon">🫗</span>
+          <div class="p-outcome-titles">
+            <div class="p-outcome-title">${currentLang === 'tr' ? 'BOŞA DÖKTÜN!' : 'CLEAN TEA WASTED!'}</div>
+            <div class="p-outcome-subtitle">${currentLang === 'tr' ? `Çayını döktün fakat fincan tertemizdi! ${me.dumpedSweetCount || 0} tatlı şeker heba oldu.` : `You panicked and dumped, but the tea was clean! ${me.dumpedSweetCount || 0} sweet sugars wasted.`}</div>
+          </div>
+        </div>
+        <div class="p-outcome-badge regret">
+          🤦‍♂️ ${currentLang === 'tr' ? 'TEMİZ ÇAY HEBA OLDU (0 PUAN)' : 'CLEAN TEA DUMPED (0 PTS)'}
+        </div>
+      </div>
+    `;
+  } else if (me.lastDrank && pointsEarned > 0) {
+    // ☕ Clean Tea (Sweet Victory)
+    personalCardHtml = `
+      <div class="personal-outcome-card clean">
+        <div class="p-outcome-header">
+          <span class="p-outcome-icon">☕</span>
+          <div class="p-outcome-titles">
+            <div class="p-outcome-title">${currentLang === 'tr' ? 'AFİYET OLSUN!' : 'SWEET REWARD!'}</div>
+            <div class="p-outcome-subtitle">${currentLang === 'tr' ? `Temiz ve lezzetli çayını içtin, fincandaki tüm tatlı şekerleri topladın!` : `You drank clean, delightful tea and harvested all sweet sugar points!`}</div>
+          </div>
+        </div>
+        <div class="p-outcome-badge clean">
+          🍬 +${pointsEarned} ${currentLang === 'tr' ? 'ŞEKER PUANI KAZANDIN' : 'SUGAR POINTS EARNED'}
+        </div>
+      </div>
+    `;
+  } else if (!me.alive) {
+    // 👁️ Spectator
+    personalCardHtml = `
+      <div class="personal-outcome-card spectator">
+        <div class="p-outcome-header">
+          <span class="p-outcome-icon">👁️</span>
+          <div class="p-outcome-titles">
+            <div class="p-outcome-title">${currentLang === 'tr' ? 'SALON GÖZLEMCİSİ' : 'PARLOR SPECTATOR'}</div>
+            <div class="p-outcome-subtitle">${currentLang === 'tr' ? 'Masada yaşanan entrikaları ve hayatta kalanların mücadelesini izliyorsun.' : 'You are observing the ongoing drama and casualties around the parlor table.'}</div>
+          </div>
+        </div>
+        <div class="p-outcome-badge spectator">
+          👁️ ${currentLang === 'tr' ? 'İZLEYİCİ' : 'SPECTATOR'}
+        </div>
+      </div>
+    `;
+  } else {
+    // Neutral
+    personalCardHtml = `
+      <div class="personal-outcome-card neutral">
+        <div class="p-outcome-header">
+          <span class="p-outcome-icon">☕</span>
+          <div class="p-outcome-titles">
+            <div class="p-outcome-title">${currentLang === 'tr' ? 'BOŞ FİNCAN' : 'EMPTY CUP'}</div>
+            <div class="p-outcome-subtitle">${currentLang === 'tr' ? 'Fincanında bu raund şeker veya zehir yoktu.' : 'There was neither sugar nor poison in your cup this round.'}</div>
+          </div>
+        </div>
+        <div class="p-outcome-badge neutral">
+          +0 ${currentLang === 'tr' ? 'PUAN' : 'PTS'}
+        </div>
+      </div>
+    `;
+  }
+
+  // 2. Masadaki Diğer Kayıplar (Other Table Casualties)
+  const otherCasualties = (currentRoom.lastPoisonEvents || []).filter(v => v.victimId !== myPlayerId);
+  let otherCasualtiesHtml = '';
+  if (otherCasualties.length > 0) {
+    otherCasualtiesHtml = `
+      <div class="parlor-table-casualties-panel">
+        <div class="casualties-panel-header">
+          <span>⚔️ ${currentLang === 'tr' ? 'BU RAUNDUN DİĞER KAYIPLARI' : 'OTHER CASUALTIES THIS ROUND'}</span>
+          <span class="badge-count">${otherCasualties.length}</span>
+        </div>
+        <div class="casualties-grid">
+          ${otherCasualties.map(v => `
+            <div class="casualty-entry ${v.isPillSaved ? 'pill-saved' : 'fatal'}">
+              <span class="c-entry-icon">${v.isPillSaved ? '💊' : '☠️'}</span>
+              <div class="c-entry-body">
+                <div class="c-entry-name">
+                  <strong>${v.victimName}</strong> 
+                  <span class="c-entry-status ${v.isPillSaved ? 'saved' : 'dead'}">${v.isPillSaved ? (currentLang === 'tr' ? 'Panzehirle Kurtuldu' : 'Saved by Pill') : (currentLang === 'tr' ? 'Elendi' : 'Eliminated')}</span>
+                </div>
+                <div class="c-entry-killer">
+                  ${currentLang === 'tr' ? 'Katil' : 'Killer'}: <strong>${v.killerName}</strong>
+                  ${v.isLeaderBounty ? '<span class="tag-bounty">👑 Lider Avı</span>' : ''}
+                  ${v.wasTrojan ? '<span class="tag-bounty">🐴 Truva Atı</span>' : ''}
+                  ${v.wasLandmine ? '<span class="tag-bounty">💣 Mayın Tuzağı</span>' : ''}
+                </div>
+              </div>
+              <div class="c-entry-pts ${v.isPillSaved ? 'neg' : 'dead'}">
+                ${v.isPillSaved ? `-${v.pointsLost}P` : 'ELENDİ'}
+              </div>
+            </div>
+          `).join('')}
+        </div>
       </div>
     `;
   }
@@ -2289,7 +2284,11 @@ function renderPhase3() {
 
     ${renderInventoryBar(me, L, true)}
 
-    ${outcomeBannerHtml}
+    <!-- 1. Kişiye Özel Raund Sonuç Kartı -->
+    ${personalCardHtml}
+
+    <!-- 2. Masadaki Diğer Kayıplar (Varsa) -->
+    ${otherCasualtiesHtml}
 
     <!-- Panel 3: Victorian Ornate Gold Frame with 2-3-2 Table Grid & Live Results -->
     <div class="filigree-frame result-phase-frame">
@@ -2299,7 +2298,7 @@ function renderPhase3() {
       <div class="filigree-corner bottom-right">${ICONS.filigreeCorner}</div>
       <div class="filigree-inner-border"></div>
       
-      <div class="filigree-header-title">RESULT PHASE</div>
+      <div class="filigree-header-title">${currentLang === 'tr' ? 'MASA DURUMU' : 'PARLOR AFTERMATH'}</div>
       
       <!-- Upper Half: 2-3-2 Table Grid with Dynamic Outcome Badges -->
       ${renderCupsTable232(allPlayers, true)}

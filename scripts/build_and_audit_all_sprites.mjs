@@ -16,298 +16,464 @@ const SPRITE_DEFS = {
   // 1. THE 7 VICTORIAN TEACUPS (32x26)
   ...createTeacupDefs(),
 
-  // 2. THE 3 ACTION BUTTON ICONS (36x36)
+  // 2. THE 3 ACTION BUTTON ICONS (48x48 High-Fidelity Woodcut/Engravings)
   icon_drink: {
-    w: 36, h: 36,
+    w: 48, h: 48,
     draw: (ctx) => {
-      // Noble silhouette drinking from teacup
-      const OUT = '#1a0c06';
-      const BODY = '#f0e6d6';
-      const SHADOW = '#b09e88';
-      const TEA = '#78350f';
-      const CUP = '#e6b843';
+      const OUT = '#120508';
+      const SKIN = '#f5eedb';
+      const SKIN_SHADOW = '#b89e82';
+      const HAT = '#26160f';
+      const HAT_GOLD = '#d4af37';
+      const SHIRT = '#ffffff';
+      const CRAVAT = '#1a0c06';
+      const RUBY = '#dc2626';
+      const CUP_PORCELAIN = '#fdfbf7';
+      const CUP_SHADE = '#cbd5e1';
+      const CUP_GOLD = '#eab308';
+      const TEA = '#9a3412';
+      const TEA_HIGHLIGHT = '#f59e0b';
+      const STEAM = '#fef3c7';
 
-      // Head & Neck
-      ctx.fillStyle = BODY;
-      ctx.fillRect(8, 11, 8, 9);
-      ctx.fillRect(9, 8, 6, 3);
-      ctx.fillRect(11, 20, 5, 8);
-      // Nose & Chin profile
-      ctx.fillRect(16, 13, 2, 2);
-      ctx.fillRect(15, 17, 2, 2);
-      // Hair / Hat shadow
-      ctx.fillStyle = SHADOW;
-      ctx.fillRect(8, 8, 4, 11);
-      ctx.fillRect(11, 20, 2, 8);
-
-      // Raised hand holding cup
-      ctx.fillStyle = BODY;
-      ctx.fillRect(16, 21, 5, 4);
-      ctx.fillRect(19, 23, 7, 5);
-      ctx.fillStyle = SHADOW;
-      ctx.fillRect(19, 26, 7, 3);
-
-      // Teacup tilted to lips
-      ctx.fillStyle = CUP;
-      ctx.fillRect(15, 14, 8, 5);
-      ctx.fillRect(16, 19, 6, 2);
-      // Saucer under tilted cup
-      ctx.fillRect(14, 20, 10, 2);
-      // Tea in cup
-      ctx.fillStyle = TEA;
-      ctx.fillRect(16, 14, 6, 2);
-
-      // Outline contours
+      // 1. Top Hat
+      ctx.fillStyle = HAT;
+      ctx.fillRect(10, 6, 14, 10);
+      ctx.fillRect(6, 15, 22, 3);
+      // Hat Gold Band
+      ctx.fillStyle = HAT_GOLD;
+      ctx.fillRect(10, 14, 14, 2);
       ctx.fillStyle = OUT;
-      // Head outline
-      ctx.fillRect(7, 8, 1, 12);
-      ctx.fillRect(8, 7, 7, 1);
-      ctx.fillRect(15, 8, 1, 5);
-      ctx.fillRect(16, 12, 1, 1);
-      ctx.fillRect(18, 13, 1, 2);
-      ctx.fillRect(16, 15, 1, 2);
-      ctx.fillRect(17, 17, 1, 2);
-      ctx.fillRect(15, 19, 1, 1);
-      ctx.fillRect(16, 20, 1, 5);
-      // Cup outline
-      ctx.fillRect(14, 13, 1, 6);
-      ctx.fillRect(23, 13, 1, 6);
-      ctx.fillRect(15, 19, 8, 1);
-      ctx.fillRect(13, 20, 1, 2);
-      ctx.fillRect(24, 20, 1, 2);
-      ctx.fillRect(14, 22, 10, 1);
+      ctx.fillRect(9, 5, 16, 1);
+      ctx.fillRect(9, 6, 1, 10);
+      ctx.fillRect(24, 6, 1, 10);
+      ctx.fillRect(5, 15, 1, 3);
+      ctx.fillRect(28, 15, 1, 3);
+      ctx.fillRect(6, 18, 22, 1);
 
-      // Steam curls above cup
-      ctx.fillStyle = '#fef3c7';
-      ctx.fillRect(19, 10, 1, 2);
-      ctx.fillRect(20, 8, 1, 2);
-      ctx.fillRect(22, 9, 1, 2);
-      ctx.fillRect(23, 7, 1, 2);
+      // 2. Aristocrat Face in Profile
+      ctx.fillStyle = SKIN;
+      ctx.fillRect(12, 18, 10, 11);
+      ctx.fillRect(22, 21, 3, 3); // Nose
+      ctx.fillRect(21, 26, 3, 2); // Chin
+      ctx.fillStyle = SKIN_SHADOW;
+      ctx.fillRect(12, 18, 3, 11);
+      // Mustache
+      ctx.fillStyle = HAT;
+      ctx.fillRect(19, 24, 4, 2);
+      // Eye
+      ctx.fillStyle = OUT;
+      ctx.fillRect(18, 20, 2, 2);
+      // Ear
+      ctx.fillStyle = SKIN_SHADOW;
+      ctx.fillRect(11, 21, 2, 4);
+
+      // 3. High Collar & Cravat
+      ctx.fillStyle = SHIRT;
+      ctx.fillRect(14, 29, 6, 6);
+      ctx.fillRect(20, 28, 4, 3); // Wing collar tip
+      ctx.fillStyle = CRAVAT;
+      ctx.fillRect(15, 33, 6, 8);
+      ctx.fillStyle = RUBY;
+      ctx.fillRect(17, 34, 2, 2); // Ruby tiepin
+
+      // 4. Gentleman's Hand lifting the cup
+      ctx.fillStyle = SKIN;
+      ctx.fillRect(25, 29, 5, 4);
+      ctx.fillRect(27, 31, 7, 4);
+      ctx.fillStyle = SKIN_SHADOW;
+      ctx.fillRect(27, 34, 7, 2);
+
+      // 5. Ornate Porcelain Teacup held at lips
+      // Cup Saucer
+      ctx.fillStyle = CUP_GOLD;
+      ctx.fillRect(22, 33, 18, 2);
+      ctx.fillStyle = CUP_PORCELAIN;
+      ctx.fillRect(24, 32, 14, 2);
+      ctx.fillStyle = OUT;
+      ctx.fillRect(21, 34, 20, 1);
+
+      // Cup Body
+      ctx.fillStyle = CUP_PORCELAIN;
+      ctx.fillRect(23, 22, 14, 10);
+      ctx.fillRect(25, 21, 10, 2);
+      // Shading on cup
+      ctx.fillStyle = CUP_SHADE;
+      ctx.fillRect(32, 22, 5, 10);
+      // Gold Filigree band on cup
+      ctx.fillStyle = CUP_GOLD;
+      ctx.fillRect(23, 27, 14, 2);
+      // Tea in cup tilted towards lips
+      ctx.fillStyle = TEA;
+      ctx.fillRect(24, 22, 8, 3);
+      ctx.fillStyle = TEA_HIGHLIGHT;
+      ctx.fillRect(25, 22, 4, 1);
+
+      // Cup Handle
+      ctx.fillStyle = CUP_GOLD;
+      ctx.fillRect(37, 24, 4, 2);
+      ctx.fillRect(39, 26, 2, 4);
+      ctx.fillRect(37, 30, 4, 2);
+      ctx.fillStyle = OUT;
+      ctx.fillRect(37, 23, 5, 1);
+      ctx.fillRect(41, 24, 1, 8);
+      ctx.fillRect(37, 32, 5, 1);
+
+      // Cup Outline
+      ctx.fillStyle = OUT;
+      ctx.fillRect(22, 21, 1, 11);
+      ctx.fillRect(37, 21, 1, 11);
+      ctx.fillRect(23, 20, 12, 1);
+
+      // 6. Fragrant Golden Steam rising
+      ctx.fillStyle = STEAM;
+      ctx.fillRect(29, 15, 2, 4);
+      ctx.fillRect(31, 12, 2, 4);
+      ctx.fillRect(30, 9, 2, 3);
+      ctx.fillRect(35, 16, 2, 3);
+      ctx.fillRect(37, 13, 2, 4);
+      ctx.fillRect(36, 10, 2, 3);
     }
   },
 
   icon_dump: {
-    w: 36, h: 36,
+    w: 48, h: 48,
     draw: (ctx) => {
-      // Teacup tilted at 45 deg, pouring tea stream
-      const OUT = '#1a0c06';
+      const OUT = '#120508';
       const CUP_BODY = '#fdfbf7';
       const CUP_SHADE = '#cbd5e1';
       const CUP_GOLD = '#d97706';
+      const CUP_GOLD_LIGHT = '#fbbf24';
       const TEA = '#78350f';
-      const TEA_SPLASH = '#b45309';
+      const TEA_BRIGHT = '#b45309';
+      const TEA_GLINT = '#f59e0b';
+      const SPLASH = '#fbbf24';
 
-      // Tilted cup body
+      // Tilted porcelain teacup (approx 45 deg)
+      // Rim
+      ctx.fillStyle = OUT;
+      ctx.fillRect(14, 8, 16, 2);
+      ctx.fillStyle = CUP_GOLD_LIGHT;
+      ctx.fillRect(15, 9, 14, 1);
+
+      // Cup body angled
       ctx.fillStyle = CUP_BODY;
-      ctx.fillRect(10, 9, 10, 6);
-      ctx.fillRect(12, 15, 8, 5);
-      ctx.fillRect(14, 20, 6, 3);
+      ctx.fillRect(14, 10, 16, 8);
+      ctx.fillRect(16, 18, 14, 8);
+      ctx.fillRect(19, 26, 10, 5);
+      // Pedestal foot
+      ctx.fillStyle = CUP_GOLD;
+      ctx.fillRect(21, 31, 8, 2);
+
       // Shading on cup
       ctx.fillStyle = CUP_SHADE;
-      ctx.fillRect(10, 11, 3, 5);
-      ctx.fillRect(12, 16, 3, 4);
+      ctx.fillRect(14, 12, 5, 6);
+      ctx.fillRect(16, 18, 5, 8);
+      ctx.fillRect(19, 26, 4, 5);
+
       // Gold filigree band
       ctx.fillStyle = CUP_GOLD;
-      ctx.fillRect(11, 13, 9, 2);
-      ctx.fillRect(13, 17, 7, 1);
+      ctx.fillRect(16, 15, 14, 3);
+      ctx.fillRect(18, 22, 12, 2);
 
-      // Handle
+      // Handle (Left side)
       ctx.fillStyle = CUP_GOLD;
-      ctx.fillRect(6, 11, 4, 2);
-      ctx.fillRect(6, 13, 2, 4);
-      ctx.fillRect(7, 17, 4, 2);
+      ctx.fillRect(8, 13, 6, 3);
+      ctx.fillRect(7, 16, 3, 8);
+      ctx.fillRect(9, 24, 7, 3);
+      ctx.fillStyle = OUT;
+      ctx.fillRect(7, 12, 8, 1);
+      ctx.fillRect(6, 13, 1, 12);
+      ctx.fillRect(7, 26, 10, 1);
 
-      // Poured tea stream gushing downwards
+      // Gushing Tea Stream pouring downwards from rim
       ctx.fillStyle = TEA;
-      ctx.fillRect(19, 11, 3, 3);
-      ctx.fillRect(21, 14, 3, 5);
-      ctx.fillRect(23, 19, 3, 7);
-      ctx.fillRect(24, 26, 3, 6);
-      // Splash drops
-      ctx.fillStyle = TEA_SPLASH;
-      ctx.fillRect(22, 31, 2, 2);
-      ctx.fillRect(28, 29, 2, 2);
-      ctx.fillRect(27, 24, 1, 2);
+      ctx.fillRect(28, 11, 5, 5);
+      ctx.fillRect(31, 15, 6, 7);
+      ctx.fillRect(33, 22, 6, 10);
+      ctx.fillRect(34, 32, 5, 11);
+      // Bright tea stream core
+      ctx.fillStyle = TEA_BRIGHT;
+      ctx.fillRect(29, 12, 3, 4);
+      ctx.fillRect(32, 16, 4, 6);
+      ctx.fillRect(34, 23, 4, 9);
+      ctx.fillRect(35, 33, 3, 10);
+      // Specular tea glint
+      ctx.fillStyle = TEA_GLINT;
+      ctx.fillRect(33, 17, 2, 4);
+      ctx.fillRect(35, 24, 2, 6);
+      ctx.fillRect(36, 34, 1, 7);
+
+      // Flying Splash Droplets
+      ctx.fillStyle = SPLASH;
+      ctx.fillRect(29, 36, 3, 3);
+      ctx.fillRect(41, 28, 3, 3);
+      ctx.fillRect(42, 36, 3, 3);
+      ctx.fillRect(39, 43, 3, 3);
+      ctx.fillRect(32, 44, 3, 2);
 
       // Outlines
       ctx.fillStyle = OUT;
-      // Cup rim & body
-      ctx.fillRect(9, 8, 11, 1);
-      ctx.fillRect(9, 9, 1, 7);
-      ctx.fillRect(11, 15, 1, 5);
-      ctx.fillRect(13, 20, 1, 4);
-      ctx.fillRect(14, 23, 6, 1);
-      ctx.fillRect(20, 19, 1, 4);
-      // Stream outline
-      ctx.fillRect(20, 14, 1, 5);
-      ctx.fillRect(22, 19, 1, 7);
-      ctx.fillRect(23, 26, 1, 6);
-      ctx.fillRect(26, 16, 1, 4);
-      ctx.fillRect(27, 20, 1, 10);
+      ctx.fillRect(13, 9, 1, 10);
+      ctx.fillRect(15, 18, 1, 9);
+      ctx.fillRect(18, 26, 1, 6);
+      ctx.fillRect(20, 32, 9, 1);
+      // Stream outlines
+      ctx.fillRect(30, 10, 1, 5);
+      ctx.fillRect(33, 15, 1, 7);
+      ctx.fillRect(39, 22, 1, 11);
+      ctx.fillRect(39, 33, 1, 11);
     }
   },
 
   icon_swap_deck: {
-    w: 36, h: 36,
+    w: 48, h: 48,
     draw: (ctx) => {
-      // Two teacups with circular swap arrows
-      const OUT = '#1a0c06';
-      const ARROW = '#eab308';
-      const ARROW_SHADE = '#a16207';
-      const CUP1 = '#f7d070';
-      const CUP2 = '#93c5fd';
+      const OUT = '#120508';
+      const GOLD_CUP = '#f59e0b';
+      const GOLD_CUP_LIGHT = '#fde047';
+      const BLUE_CUP = '#2563eb';
+      const BLUE_CUP_LIGHT = '#93c5fd';
+      const ARROW_GOLD = '#ffd700';
+      const ARROW_SHADOW = '#92400e';
+      const TEA = '#78350f';
 
-      // Left Cup
-      ctx.fillStyle = CUP1;
-      ctx.fillRect(6, 17, 9, 6);
-      ctx.fillRect(5, 23, 11, 2);
+      // Left Cup (Gold / Ivory)
+      // Saucer
+      ctx.fillStyle = GOLD_CUP;
+      ctx.fillRect(5, 36, 16, 2);
       ctx.fillStyle = OUT;
-      ctx.fillRect(5, 16, 11, 1);
-      ctx.fillRect(5, 17, 1, 6);
-      ctx.fillRect(15, 17, 1, 6);
-      ctx.fillRect(4, 24, 13, 1);
-
-      // Right Cup
-      ctx.fillStyle = CUP2;
-      ctx.fillRect(21, 9, 9, 6);
-      ctx.fillRect(20, 15, 11, 2);
+      ctx.fillRect(4, 37, 18, 1);
+      // Body
+      ctx.fillStyle = GOLD_CUP;
+      ctx.fillRect(7, 24, 12, 11);
+      ctx.fillStyle = GOLD_CUP_LIGHT;
+      ctx.fillRect(7, 24, 3, 11);
+      // Tea
+      ctx.fillStyle = TEA;
+      ctx.fillRect(8, 24, 10, 2);
+      // Handle
+      ctx.fillStyle = GOLD_CUP_LIGHT;
+      ctx.fillRect(4, 26, 3, 2);
+      ctx.fillRect(3, 28, 2, 4);
+      ctx.fillRect(4, 32, 3, 2);
+      // Outline
       ctx.fillStyle = OUT;
-      ctx.fillRect(20, 8, 11, 1);
-      ctx.fillRect(20, 9, 1, 6);
-      ctx.fillRect(30, 9, 1, 6);
-      ctx.fillRect(19, 16, 13, 1);
+      ctx.fillRect(6, 23, 14, 1);
+      ctx.fillRect(6, 24, 1, 12);
+      ctx.fillRect(19, 24, 1, 12);
 
-      // Top Curved Arrow (Left to Right)
-      ctx.fillStyle = ARROW;
-      ctx.fillRect(12, 7, 7, 2);
-      ctx.fillRect(17, 8, 3, 3);
-      // Arrow head pointing right
-      ctx.fillRect(18, 5, 2, 5);
-      ctx.fillRect(19, 6, 2, 3);
-      ctx.fillRect(20, 7, 1, 1);
+      // Right Cup (Sapphire / Silver)
+      // Saucer
+      ctx.fillStyle = BLUE_CUP;
+      ctx.fillRect(27, 22, 16, 2);
+      ctx.fillStyle = OUT;
+      ctx.fillRect(26, 23, 18, 1);
+      // Body
+      ctx.fillStyle = BLUE_CUP;
+      ctx.fillRect(29, 10, 12, 11);
+      ctx.fillStyle = BLUE_CUP_LIGHT;
+      ctx.fillRect(29, 10, 3, 11);
+      // Tea
+      ctx.fillStyle = TEA;
+      ctx.fillRect(30, 10, 10, 2);
+      // Handle
+      ctx.fillStyle = BLUE_CUP_LIGHT;
+      ctx.fillRect(41, 12, 3, 2);
+      ctx.fillRect(43, 14, 2, 4);
+      ctx.fillRect(41, 18, 3, 2);
+      // Outline
+      ctx.fillStyle = OUT;
+      ctx.fillRect(28, 9, 14, 1);
+      ctx.fillRect(28, 10, 1, 12);
+      ctx.fillRect(41, 10, 1, 12);
 
-      // Bottom Curved Arrow (Right to Left)
-      ctx.fillStyle = ARROW;
-      ctx.fillRect(16, 25, 7, 2);
-      ctx.fillRect(15, 23, 3, 3);
-      // Arrow head pointing left
-      ctx.fillRect(14, 24, 2, 5);
-      ctx.fillRect(13, 25, 2, 3);
-      ctx.fillRect(12, 26, 1, 1);
+      // Top Clockwise Circular Arrow (Sweeping from left to right)
+      ctx.fillStyle = ARROW_GOLD;
+      ctx.fillRect(14, 7, 16, 3);
+      ctx.fillRect(28, 8, 4, 5);
+      // Arrowhead pointing right
+      ctx.fillRect(30, 4, 3, 9);
+      ctx.fillRect(33, 6, 2, 5);
+      ctx.fillRect(35, 7, 2, 3);
+      ctx.fillStyle = ARROW_SHADOW;
+      ctx.fillRect(14, 6, 16, 1);
+      ctx.fillRect(14, 10, 14, 1);
 
-      // Arrow outlines
-      ctx.fillStyle = ARROW_SHADE;
-      ctx.fillRect(12, 6, 6, 1);
-      ctx.fillRect(16, 27, 7, 1);
+      // Bottom Clockwise Circular Arrow (Sweeping from right to left)
+      ctx.fillStyle = ARROW_GOLD;
+      ctx.fillRect(18, 39, 16, 3);
+      ctx.fillRect(16, 37, 4, 4);
+      // Arrowhead pointing left
+      ctx.fillRect(15, 35, 3, 9);
+      ctx.fillRect(13, 37, 2, 5);
+      ctx.fillRect(11, 38, 2, 3);
+      ctx.fillStyle = ARROW_SHADOW;
+      ctx.fillRect(18, 38, 16, 1);
+      ctx.fillRect(20, 42, 14, 1);
     }
   },
 
-  // 3. INVENTORY BADGES (18x18)
+  // 3. INVENTORY BADGES (24x24 Detailed Victorian Apothecary)
   inv_pill: {
-    w: 18, h: 18,
+    w: 24, h: 24,
     draw: (ctx) => {
       const OUT = '#120508';
+      const GLASS = '#f8fafc';
+      const GLASS_SHADE = '#94a3b8';
+      const CORK = '#854d0e';
       const RED = '#dc2626';
       const RED_LIGHT = '#ef4444';
-      const WHITE = '#fdfbf7';
-      const WHITE_SHADE = '#cbd5e1';
+      const WHITE = '#ffffff';
 
-      // Outline
+      // Cork Stopper
+      ctx.fillStyle = CORK;
+      ctx.fillRect(9, 2, 6, 3);
       ctx.fillStyle = OUT;
-      ctx.fillRect(5, 3, 8, 12);
-      ctx.fillRect(4, 4, 10, 10);
+      ctx.fillRect(8, 1, 8, 1);
+      ctx.fillRect(8, 2, 1, 3);
+      ctx.fillRect(15, 2, 1, 3);
 
-      // Top Red Half
+      // Glass Bottle Collar & Body
+      ctx.fillStyle = GLASS_SHADE;
+      ctx.fillRect(7, 5, 10, 2);
+      ctx.fillRect(5, 7, 14, 14);
+      // Glass Interior
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(6, 8, 12, 12);
+      // Glass Specular Highlight
+      ctx.fillStyle = GLASS;
+      ctx.fillRect(6, 8, 2, 12);
+      ctx.fillRect(7, 8, 2, 3);
+
+      // Antidote Capsule (Floating inside)
+      // Red Upper Half
       ctx.fillStyle = RED;
-      ctx.fillRect(5, 4, 8, 5);
-      // Red Highlight
+      ctx.fillRect(9, 10, 6, 4);
       ctx.fillStyle = RED_LIGHT;
-      ctx.fillRect(6, 4, 2, 4);
-
-      // Bottom White Half
+      ctx.fillRect(10, 10, 2, 4);
+      // White Lower Half
       ctx.fillStyle = WHITE;
-      ctx.fillRect(5, 9, 8, 4);
-      // White shade
-      ctx.fillStyle = WHITE_SHADE;
-      ctx.fillRect(10, 9, 2, 4);
-
+      ctx.fillRect(9, 14, 6, 4);
+      // Cross Symbol
+      ctx.fillStyle = WHITE;
+      ctx.fillRect(11, 11, 2, 2);
       // Capsule Divider
       ctx.fillStyle = OUT;
-      ctx.fillRect(5, 9, 8, 1);
+      ctx.fillRect(9, 14, 6, 1);
+
+      // Outer Bottle Outline
+      ctx.fillStyle = OUT;
+      ctx.fillRect(4, 7, 1, 14);
+      ctx.fillRect(19, 7, 1, 14);
+      ctx.fillRect(5, 21, 14, 1);
     }
   },
 
   inv_cyanide: {
-    w: 18, h: 18,
+    w: 24, h: 24,
     draw: (ctx) => {
-      const OUT = '#15061c';
+      const OUT = '#120508';
       const CORK = '#854d0e';
-      const GLASS = '#2e1065';
-      const LIQUID = '#7e22ce';
-      const GLOW = '#c084fc';
-      const SKULL = '#fdfbf7';
+      const AMETHYST = '#581c87';
+      const AMETHYST_DARK = '#2e1065';
+      const AMETHYST_LIGHT = '#c084fc';
+      const POISON = '#7e22ce';
+      const SKULL_GOLD = '#fef08a';
+      const FUME = '#e9d5ff';
 
-      // Cork
+      // Toxic Fume rising from cork
+      ctx.fillStyle = FUME;
+      ctx.fillRect(11, 0, 2, 2);
+      ctx.fillRect(13, 1, 2, 2);
+
+      // Cork Stopper
       ctx.fillStyle = CORK;
-      ctx.fillRect(7, 2, 4, 3);
+      ctx.fillRect(9, 3, 6, 3);
       ctx.fillStyle = OUT;
-      ctx.fillRect(7, 1, 4, 1);
-      ctx.fillRect(6, 2, 1, 3);
-      ctx.fillRect(11, 2, 1, 3);
+      ctx.fillRect(8, 2, 8, 1);
+      ctx.fillRect(8, 3, 1, 3);
+      ctx.fillRect(15, 3, 1, 3);
 
-      // Bottle Body
-      ctx.fillStyle = OUT;
-      ctx.fillRect(4, 5, 10, 11);
-      ctx.fillStyle = GLASS;
-      ctx.fillRect(5, 6, 8, 9);
+      // Hexagonal Crystal Bottle Body
+      ctx.fillStyle = AMETHYST_DARK;
+      ctx.fillRect(7, 6, 10, 2);
+      ctx.fillRect(5, 8, 14, 13);
       // Poison Liquid
-      ctx.fillStyle = LIQUID;
-      ctx.fillRect(5, 9, 8, 6);
-      // Glass Specular Gloss
-      ctx.fillStyle = GLOW;
-      ctx.fillRect(5, 7, 1, 7);
-      ctx.fillRect(6, 7, 1, 2);
-      // Mini Skull Face
-      ctx.fillStyle = SKULL;
-      ctx.fillRect(8, 10, 3, 2);
-      ctx.fillRect(8, 13, 2, 1);
+      ctx.fillStyle = POISON;
+      ctx.fillRect(6, 12, 12, 8);
+      // Crystal Facet Highlight
+      ctx.fillStyle = AMETHYST_LIGHT;
+      ctx.fillRect(6, 8, 2, 12);
+      ctx.fillRect(8, 8, 2, 3);
+
+      // Brass Skull Emblem Stamped on Glass
+      ctx.fillStyle = SKULL_GOLD;
+      ctx.fillRect(10, 13, 4, 3); // Cranium
+      ctx.fillRect(11, 16, 2, 2); // Jaw
+      ctx.fillRect(9, 17, 6, 1); // Crossbones
       ctx.fillStyle = OUT;
-      ctx.fillRect(8, 11, 1, 1);
-      ctx.fillRect(10, 11, 1, 1);
+      ctx.fillRect(10, 14, 1, 1); // Eye 1
+      ctx.fillRect(12, 14, 1, 1); // Eye 2
+
+      // Outer Outline
+      ctx.fillStyle = OUT;
+      ctx.fillRect(4, 8, 1, 13);
+      ctx.fillRect(19, 8, 1, 13);
+      ctx.fillRect(5, 21, 14, 1);
     }
   },
 
   inv_swap: {
-    w: 18, h: 18,
+    w: 24, h: 24,
     draw: (ctx) => {
-      const OUT = '#1a0c06';
-      const GOLD = '#eab308';
-      const GOLD_LIGHT = '#fef08a';
-      const GOLD_DARK = '#854d0e';
+      const OUT = '#120508';
+      const BRASS = '#ca8a04';
+      const BRASS_LIGHT = '#fde047';
+      const BRASS_DARK = '#78350f';
+      const DIAL = '#fef3c7';
 
-      // Circular twin arrows
+      // Top Watch Winder Loop
+      ctx.fillStyle = BRASS_LIGHT;
+      ctx.fillRect(10, 1, 4, 2);
       ctx.fillStyle = OUT;
-      ctx.fillRect(4, 4, 10, 10);
-      ctx.fillStyle = GOLD_DARK;
-      ctx.fillRect(5, 5, 8, 8);
+      ctx.fillRect(9, 0, 6, 1);
+      ctx.fillRect(9, 1, 1, 3);
+      ctx.fillRect(14, 1, 1, 3);
 
-      // Arrow 1
-      ctx.fillStyle = GOLD;
-      ctx.fillRect(6, 6, 6, 2);
-      ctx.fillRect(10, 7, 2, 3);
-      ctx.fillStyle = GOLD_LIGHT;
-      ctx.fillRect(11, 6, 2, 2);
+      // Circular Brass Pocket Watch Casing
+      ctx.fillStyle = BRASS_DARK;
+      ctx.fillRect(6, 4, 12, 16);
+      ctx.fillRect(4, 6, 16, 12);
+      ctx.fillStyle = BRASS;
+      ctx.fillRect(7, 5, 10, 14);
+      ctx.fillRect(5, 7, 14, 10);
+      // Gilded Rim Highlight
+      ctx.fillStyle = BRASS_LIGHT;
+      ctx.fillRect(7, 5, 10, 2);
+      ctx.fillRect(5, 7, 2, 10);
 
-      // Arrow 2
-      ctx.fillStyle = GOLD;
-      ctx.fillRect(6, 10, 2, 3);
-      ctx.fillRect(6, 11, 6, 2);
-      ctx.fillStyle = GOLD_LIGHT;
-      ctx.fillRect(5, 11, 2, 2);
+      // Parchment Watch Face
+      ctx.fillStyle = DIAL;
+      ctx.fillRect(8, 7, 8, 10);
+      ctx.fillRect(7, 8, 10, 8);
 
-      // Center hole
+      // Clockwork Hands / Twin Exchange Arrows
       ctx.fillStyle = OUT;
-      ctx.fillRect(8, 8, 2, 2);
+      ctx.fillRect(11, 11, 2, 2); // Center pinion
+      // Arrow 1 (Pointing 2 o'clock)
+      ctx.fillStyle = BRASS_DARK;
+      ctx.fillRect(12, 9, 3, 2);
+      ctx.fillRect(14, 8, 2, 2);
+      // Arrow 2 (Pointing 8 o'clock)
+      ctx.fillRect(9, 13, 3, 2);
+      ctx.fillRect(8, 14, 2, 2);
+
+      // Outer Rim Outline
+      ctx.fillStyle = OUT;
+      ctx.fillRect(5, 4, 14, 1);
+      ctx.fillRect(3, 6, 1, 12);
+      ctx.fillRect(20, 6, 1, 12);
+      ctx.fillRect(5, 19, 14, 1);
     }
   },
 
@@ -597,84 +763,316 @@ const SPRITE_DEFS = {
 
 function createTeacupDefs() {
   const PALETTES = {
-    gold: { outline: '#120904', shadow: '#785108', mid: '#c79628', light: '#f7d070', filigree: '#fff8e7' },
-    blue: { outline: '#060d17', shadow: '#143360', mid: '#2563eb', light: '#93c5fd', filigree: '#e0f2fe' },
-    crimson: { outline: '#140508', shadow: '#660d1b', mid: '#b91c1c', light: '#f87171', filigree: '#fef2f2' },
-    green: { outline: '#04140b', shadow: '#0e4a28', mid: '#15803d', light: '#4ade80', filigree: '#f0fdf4' },
-    orange: { outline: '#140804', shadow: '#7a2e0a', mid: '#ea580c', light: '#fb923c', filigree: '#fff7ed' },
-    silver: { outline: '#0a0c10', shadow: '#334155', mid: '#64748b', light: '#cbd5e1', filigree: '#ffffff' },
-    copper: { outline: '#140905', shadow: '#5c2a16', mid: '#b45309', light: '#f59e0b', filigree: '#fef3c7' }
+    gold: {
+      outline: '#140a04',
+      shadow: '#784606',
+      mid: '#c79628',
+      light: '#f7d070',
+      glint: '#fffbeb',
+      filigree: '#fef08a',
+      goldTrim: '#ffd700',
+      teaDark: '#451a03',
+      teaLight: '#9a3412'
+    },
+    blue: {
+      outline: '#060d17',
+      shadow: '#143360',
+      mid: '#2563eb',
+      light: '#93c5fd',
+      glint: '#eff6ff',
+      filigree: '#fde047',
+      goldTrim: '#ffd700',
+      teaDark: '#451a03',
+      teaLight: '#9a3412'
+    },
+    crimson: {
+      outline: '#140508',
+      shadow: '#5e0d1b',
+      mid: '#b91c1c',
+      light: '#f87171',
+      glint: '#fff1f2',
+      filigree: '#fde047',
+      goldTrim: '#ffd700',
+      teaDark: '#451a03',
+      teaLight: '#9a3412'
+    },
+    green: {
+      outline: '#04140b',
+      shadow: '#0d4a25',
+      mid: '#15803d',
+      light: '#4ade80',
+      glint: '#f0fdf4',
+      filigree: '#fde047',
+      goldTrim: '#ffd700',
+      teaDark: '#451a03',
+      teaLight: '#9a3412'
+    },
+    orange: {
+      outline: '#140804',
+      shadow: '#7a2806',
+      mid: '#ea580c',
+      light: '#fb923c',
+      glint: '#fff7ed',
+      filigree: '#fef08a',
+      goldTrim: '#ffd700',
+      teaDark: '#451a03',
+      teaLight: '#9a3412'
+    },
+    silver: {
+      outline: '#0a0c10',
+      shadow: '#334155',
+      mid: '#64748b',
+      light: '#cbd5e1',
+      glint: '#ffffff',
+      filigree: '#fde047',
+      goldTrim: '#ffd700',
+      teaDark: '#451a03',
+      teaLight: '#9a3412'
+    },
+    copper: {
+      outline: '#140905',
+      shadow: '#57220e',
+      mid: '#b45309',
+      light: '#f59e0b',
+      glint: '#fef3c7',
+      filigree: '#fef08a',
+      goldTrim: '#ffd700',
+      teaDark: '#451a03',
+      teaLight: '#9a3412'
+    }
   };
 
   const defs = {};
   Object.keys(PALETTES).forEach(colorKey => {
     const pal = PALETTES[colorKey];
     defs[`cup_${colorKey}`] = {
-      w: 32, h: 26,
+      w: 36, h: 28,
       draw: new Function('ctx', `
         const outline = '${pal.outline}';
         const shadow = '${pal.shadow}';
         const mid = '${pal.mid}';
         const light = '${pal.light}';
+        const glint = '${pal.glint}';
         const filigree = '${pal.filigree}';
+        const goldTrim = '${pal.goldTrim}';
+        const teaDark = '${pal.teaDark}';
+        const teaLight = '${pal.teaLight}';
 
-        // Saucer
+        // 1. Delicate Steam Rising Above Cup
+        ctx.fillStyle = '#ffe4b5';
+        ctx.fillRect(13, 1, 2, 1);
+        ctx.fillRect(12, 2, 2, 1);
+        ctx.fillRect(11, 3, 2, 2);
+        ctx.fillRect(10, 5, 2, 2);
+
+        ctx.fillRect(21, 1, 2, 1);
+        ctx.fillRect(20, 2, 2, 1);
+        ctx.fillRect(19, 3, 2, 2);
+        ctx.fillRect(18, 5, 2, 2);
+
+        // 2. Saucer Base and Pedestal Shadow
+        // Saucer bottom silhouette
         ctx.fillStyle = outline;
-        ctx.fillRect(2, 23, 28, 2);
-        ctx.fillStyle = light;
-        ctx.fillRect(3, 21, 26, 2);
-        ctx.fillStyle = mid;
-        ctx.fillRect(4, 22, 24, 1);
+        ctx.fillRect(7, 26, 22, 1);
+        ctx.fillRect(4, 25, 28, 1);
+        ctx.fillRect(2, 24, 32, 1);
+        ctx.fillRect(3, 23, 30, 1);
 
-        // Cup Body
-        ctx.fillStyle = outline;
-        ctx.fillRect(5, 7, 22, 13);
-        ctx.fillRect(6, 6, 20, 15);
-
-        // Base color
-        ctx.fillStyle = mid;
-        ctx.fillRect(6, 8, 20, 11);
-        ctx.fillRect(8, 19, 16, 2);
-
-        // Highlight column (Left)
-        ctx.fillStyle = light;
-        ctx.fillRect(6, 8, 4, 11);
-        ctx.fillRect(8, 19, 3, 2);
-
-        // Shadow column (Right)
+        // Saucer rim & plate body
         ctx.fillStyle = shadow;
-        ctx.fillRect(21, 8, 5, 11);
-        ctx.fillRect(19, 19, 4, 2);
-
-        // Fine Victorian Filigree Pattern (White/Light lace)
-        ctx.fillStyle = filigree;
-        ctx.fillRect(10, 12, 12, 1);
-        ctx.fillRect(11, 11, 2, 3);
-        ctx.fillRect(15, 10, 2, 4);
-        ctx.fillRect(19, 11, 2, 3);
-
-        // Tea surface
-        ctx.fillStyle = '#6b2d0e';
-        ctx.fillRect(7, 8, 18, 2);
-        ctx.fillStyle = '#9a471c';
-        ctx.fillRect(8, 8, 12, 1);
-
-        // Handle
+        ctx.fillRect(4, 25, 28, 1);
+        ctx.fillStyle = mid;
+        ctx.fillRect(3, 24, 30, 1);
         ctx.fillStyle = light;
-        ctx.fillRect(26, 10, 4, 2);
-        ctx.fillRect(28, 12, 2, 4);
-        ctx.fillRect(26, 16, 4, 2);
-        ctx.fillStyle = outline;
-        ctx.fillRect(25, 9, 6, 1);
-        ctx.fillRect(30, 10, 1, 8);
-        ctx.fillRect(25, 18, 6, 1);
+        ctx.fillRect(4, 24, 10, 1);
+        ctx.fillStyle = glint;
+        ctx.fillRect(6, 24, 4, 1);
+        ctx.fillStyle = goldTrim;
+        ctx.fillRect(5, 25, 26, 1);
 
-        // Delicate Steam (Top)
-        ctx.fillStyle = '#ffe8d6';
-        ctx.fillRect(10, 3, 1, 3);
-        ctx.fillRect(11, 1, 1, 3);
-        ctx.fillRect(17, 3, 1, 3);
-        ctx.fillRect(18, 1, 1, 3);
+        // Pedestal Foot
+        ctx.fillStyle = outline;
+        ctx.fillRect(11, 21, 14, 2);
+        ctx.fillStyle = goldTrim;
+        ctx.fillRect(12, 22, 12, 1);
+        ctx.fillStyle = light;
+        ctx.fillRect(12, 21, 4, 1);
+        ctx.fillStyle = shadow;
+        ctx.fillRect(19, 21, 5, 1);
+
+        // 3. Cup Body - Curved Silhouette (Row-by-Row Tonal Hierarchy)
+        // Row 20 (narrow waist above pedestal)
+        ctx.fillStyle = outline;
+        ctx.fillRect(11, 20, 14, 1);
+        ctx.fillStyle = goldTrim;
+        ctx.fillRect(12, 20, 12, 1);
+
+        // Row 19 (curving outwards)
+        ctx.fillStyle = outline;
+        ctx.fillRect(9, 19, 18, 1);
+        ctx.fillStyle = light;
+        ctx.fillRect(10, 19, 4, 1);
+        ctx.fillStyle = mid;
+        ctx.fillRect(14, 19, 7, 1);
+        ctx.fillStyle = shadow;
+        ctx.fillRect(21, 19, 5, 1);
+
+        // Row 18
+        ctx.fillStyle = outline;
+        ctx.fillRect(8, 18, 20, 1);
+        ctx.fillStyle = light;
+        ctx.fillRect(9, 18, 4, 1);
+        ctx.fillStyle = mid;
+        ctx.fillRect(13, 18, 8, 1);
+        ctx.fillStyle = shadow;
+        ctx.fillRect(21, 18, 6, 1);
+
+        // Row 17
+        ctx.fillStyle = outline;
+        ctx.fillRect(7, 17, 22, 1);
+        ctx.fillStyle = light;
+        ctx.fillRect(8, 17, 4, 1);
+        ctx.fillStyle = mid;
+        ctx.fillRect(12, 17, 9, 1);
+        ctx.fillStyle = shadow;
+        ctx.fillRect(21, 17, 7, 1);
+
+        // Row 16
+        ctx.fillStyle = outline;
+        ctx.fillRect(7, 16, 22, 1);
+        ctx.fillStyle = light;
+        ctx.fillRect(8, 16, 4, 1);
+        ctx.fillStyle = mid;
+        ctx.fillRect(12, 16, 10, 1);
+        ctx.fillStyle = shadow;
+        ctx.fillRect(22, 16, 6, 1);
+        // Filigree emblem center
+        ctx.fillStyle = goldTrim;
+        ctx.fillRect(17, 16, 2, 1);
+
+        // Row 15
+        ctx.fillStyle = outline;
+        ctx.fillRect(6, 15, 24, 1);
+        ctx.fillStyle = light;
+        ctx.fillRect(7, 15, 5, 1);
+        ctx.fillStyle = mid;
+        ctx.fillRect(12, 15, 10, 1);
+        ctx.fillStyle = shadow;
+        ctx.fillRect(22, 15, 7, 1);
+        // Filigree emblem wing
+        ctx.fillStyle = filigree;
+        ctx.fillRect(16, 15, 4, 1);
+
+        // Row 14
+        ctx.fillStyle = outline;
+        ctx.fillRect(6, 14, 24, 1);
+        ctx.fillStyle = glint;
+        ctx.fillRect(8, 14, 2, 1);
+        ctx.fillStyle = light;
+        ctx.fillRect(7, 14, 4, 1);
+        ctx.fillStyle = mid;
+        ctx.fillRect(11, 14, 12, 1);
+        ctx.fillStyle = shadow;
+        ctx.fillRect(23, 14, 6, 1);
+        // Filigree crown
+        ctx.fillStyle = filigree;
+        ctx.fillRect(15, 14, 6, 1);
+        ctx.fillStyle = goldTrim;
+        ctx.fillRect(17, 14, 2, 1);
+
+        // Row 13
+        ctx.fillStyle = outline;
+        ctx.fillRect(5, 13, 26, 1);
+        ctx.fillStyle = glint;
+        ctx.fillRect(7, 13, 2, 1);
+        ctx.fillStyle = light;
+        ctx.fillRect(6, 13, 5, 1);
+        ctx.fillStyle = mid;
+        ctx.fillRect(11, 13, 12, 1);
+        ctx.fillStyle = shadow;
+        ctx.fillRect(23, 13, 7, 1);
+        ctx.fillStyle = filigree;
+        ctx.fillRect(16, 13, 4, 1);
+
+        // Row 12
+        ctx.fillStyle = outline;
+        ctx.fillRect(5, 12, 26, 1);
+        ctx.fillStyle = glint;
+        ctx.fillRect(7, 12, 2, 1);
+        ctx.fillStyle = light;
+        ctx.fillRect(6, 12, 5, 1);
+        ctx.fillStyle = mid;
+        ctx.fillRect(11, 12, 12, 1);
+        ctx.fillStyle = shadow;
+        ctx.fillRect(23, 12, 7, 1);
+
+        // Row 11
+        ctx.fillStyle = outline;
+        ctx.fillRect(5, 11, 26, 1);
+        ctx.fillStyle = light;
+        ctx.fillRect(6, 11, 5, 1);
+        ctx.fillStyle = mid;
+        ctx.fillRect(11, 11, 12, 1);
+        ctx.fillStyle = shadow;
+        ctx.fillRect(23, 11, 7, 1);
+
+        // Row 10 (Flared Rim Band)
+        ctx.fillStyle = outline;
+        ctx.fillRect(4, 10, 28, 1);
+        ctx.fillStyle = goldTrim;
+        ctx.fillRect(5, 10, 26, 1);
+
+        // Row 9 (Rim opening and Tea Surface)
+        ctx.fillStyle = outline;
+        ctx.fillRect(4, 9, 28, 1);
+        ctx.fillStyle = teaDark;
+        ctx.fillRect(6, 9, 24, 1);
+        ctx.fillStyle = teaLight;
+        ctx.fillRect(8, 9, 12, 1);
+        ctx.fillStyle = goldTrim;
+        ctx.fillRect(5, 9, 1, 1);
+        ctx.fillRect(30, 9, 1, 1);
+
+        // Row 8 (Rim Top Edge)
+        ctx.fillStyle = outline;
+        ctx.fillRect(5, 8, 26, 1);
+        ctx.fillStyle = goldTrim;
+        ctx.fillRect(6, 8, 24, 1);
+
+        // Row 7 (Rim Top Lip Silhouette)
+        ctx.fillStyle = outline;
+        ctx.fillRect(6, 7, 24, 1);
+
+        // 4. Ornate Gilded C-Loop Handle on the Right
+        // Outer loop outline
+        ctx.fillStyle = outline;
+        ctx.fillRect(29, 10, 4, 1);
+        ctx.fillRect(32, 11, 3, 1);
+        ctx.fillRect(34, 12, 2, 5);
+        ctx.fillRect(33, 17, 2, 1);
+        ctx.fillRect(31, 18, 3, 1);
+        ctx.fillRect(27, 19, 4, 1);
+
+        // Inner loop outline
+        ctx.fillRect(29, 12, 3, 1);
+        ctx.fillRect(31, 13, 2, 1);
+        ctx.fillRect(32, 14, 1, 1);
+        ctx.fillRect(31, 15, 2, 1);
+        ctx.fillRect(29, 16, 3, 1);
+        ctx.fillRect(27, 17, 3, 1);
+
+        // Gold and specular fill on the handle
+        ctx.fillStyle = goldTrim;
+        ctx.fillRect(29, 11, 3, 1);
+        ctx.fillStyle = glint;
+        ctx.fillRect(32, 12, 2, 1);
+        ctx.fillStyle = goldTrim;
+        ctx.fillRect(33, 13, 1, 2);
+        ctx.fillStyle = shadow;
+        ctx.fillRect(33, 15, 1, 1);
+        ctx.fillRect(32, 16, 2, 1);
+        ctx.fillRect(30, 17, 3, 1);
+        ctx.fillRect(28, 18, 3, 1);
       `)
     };
   });

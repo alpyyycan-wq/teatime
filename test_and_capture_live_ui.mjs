@@ -58,6 +58,8 @@ async function main() {
   }
 
   // 4. Phase 2 (The Verdict / Decision)
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await new Promise(r => setTimeout(r, 300));
   await page.screenshot({ path: path.join(OUT_DIR, 'screen_4_phase2_topnotch.png') });
   console.log('Captured screen_4_phase2_topnotch.png');
 
@@ -69,6 +71,31 @@ async function main() {
     await page.screenshot({ path: path.join(OUT_DIR, 'screen_4_phase2_dump_selected.png') });
     console.log('Captured screen_4_phase2_dump_selected.png');
   }
+
+  // Confirm player verdict
+  const btnConfirm = await page.$('#btnConfirmVerdict');
+  if (btnConfirm) {
+    await btnConfirm.click();
+    await new Promise(r => setTimeout(r, 800));
+  }
+
+  // Host advance to Phase 3 (Sonuç Fazı)
+  const btnHostReveal = await page.$('#btnHostRevealPhase3');
+  if (btnHostReveal) {
+    await btnHostReveal.click();
+    await new Promise(r => setTimeout(r, 1500));
+  }
+
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await new Promise(r => setTimeout(r, 300));
+
+  // Verify intermediate skull popup does NOT exist
+  const skullPopup = await page.$('.poison-reveal-card, #poisonRevealScreen');
+  console.log('Intermediate Skull Popup Exists?', !!skullPopup ? '❌ YES (ERROR)' : '✅ NO (Correctly unified!)');
+
+  // 5. Phase 3 (Unified Result Screen)
+  await page.screenshot({ path: path.join(OUT_DIR, 'screen_5_phase3_unified.png') });
+  console.log('Captured screen_5_phase3_unified.png');
 
   await browser.close();
   console.log('✅ Capture complete!');

@@ -129,7 +129,8 @@ export async function startGame(roomCode) {
     winner: null,
     players: players,
     currentModifier: null,
-    lastPoisonEvent: null
+    lastPoisonEvent: null,
+    lastPoisonEvents: []
   });
 
   auditorAgent.init(roomCode);
@@ -141,10 +142,7 @@ export async function startGame(roomCode) {
 // -------------------------------------------------------------------
 
 export async function submitDropAction(roomCode, playerId, actionChoice) {
-  if (actionChoice.target === playerId) {
-    throw new Error("Kendi fincanına şeker atamazsın! Başka bir oyuncunun fincanını seçmelisin.");
-  }
-
+  // Target can be ANY alive player, including playerId (Self-Cyanide / Self-Sweet)
   await DB.update(`rooms/${roomCode}/players/${playerId}`, {
     dropAction: actionChoice,
     ready: true
@@ -293,6 +291,17 @@ export async function advanceToPhase3(roomCode, room) {
   const newDetailed = [...(room.detailedLogs || [])];
   const targetGoal = room.targetPoints || 8;
 
+  // Detect current leader (highest score, >= 3 points) before this round resolves
+  let currentLeaderId = null;
+  let highestPts = 0;
+  for (const p of Object.values(players)) {
+    if (p.alive && (p.points || 0) > highestPts) {
+      highestPts = p.points;
+      currentLeaderId = p.id;
+    }
+  }
+  const isLeader = (pid) => (currentLeaderId === pid && highestPts >= 3);
+
   // Pre-initialize per-round flags so subsequent kill awards aren't wiped out
   for (const p of Object.values(players)) {
     p.autoPillUsed = false;
@@ -369,25 +378,47 @@ export async function advanceToPhase3(roomCode, room) {
     if (drank) {
       if (sugars.cyanide > 0) {
         // POISONED!
+        const victimIsLeader = isLeader(p.id);
+        const killers = sugars.cyanideSources || [];
+        if (killers.length > 0) {
+          p.nemesis = killers[0].name;
+        }
+
+        // Check for Trojan Horse or Landmine bluff origins
+        let wasTrojan = false;
+        let wasLandmine = false;
+        for (const k of killers) {
+          if (k.id !== p.id && players[k.id]) {
+            const killerP = players[k.id];
+            const killerPutsInOwnCup = killerP.dropAction && killerP.dropAction.target === killerP.id && killerP.dropAction.type === 'CYANIDE';
+            if (killerPutsInOwnCup) {
+              if (killerP.swappedThisRound && killerP.swappedThisRound.targetId === p.id) {
+                wasTrojan = true;
+              } else if (p.swappedThisRound && p.swappedThisRound.targetId === killerP.id) {
+                wasLandmine = true;
+              }
+            }
+          }
+        }
+        p.wasTrojanVictim = wasTrojan;
+        p.wasLandmineVictim = wasLandmine;
+
         if ((p.pill || 0) > 0) {
           p.pill = 0;
           p.autoPillUsed = true;
 
-          // -2 Points Penalty for drinking cyanide!
+          // Points Penalty: Leader loses 50% (min 2), normal player loses 2 pts
           const prevPoints = p.points || 0;
-          const pointsLost = Math.min(prevPoints, 2);
-          p.points = Math.max(0, prevPoints - 2);
+          const pointsLost = victimIsLeader ? Math.max(2, Math.floor(prevPoints / 2)) : Math.min(prevPoints, 2);
+          p.points = Math.max(0, prevPoints - pointsLost);
           p.pointsLostThisRound = pointsLost;
 
-          // Award +1 Poison Hit Bounty to each poisoner who successfully tricked this player!
-          const killers = sugars.cyanideSources || [];
-          if (killers.length > 0) {
-            p.nemesis = killers[0].name;
-          }
+          // Award Bounty: +2 if leader fell, +1 normal
+          const bounty = victimIsLeader ? 2 : 1;
           for (const k of killers) {
             if (players[k.id] && k.id !== p.id) {
-              players[k.id].points = (players[k.id].points || 0) + 1;
-              players[k.id].pointsEarnedThisRound = (players[k.id].pointsEarnedThisRound || 0) + 1;
+              players[k.id].points = (players[k.id].points || 0) + bounty;
+              players[k.id].pointsEarnedThisRound = (players[k.id].pointsEarnedThisRound || 0) + bounty;
               players[k.id].poisonHitsThisRound = (players[k.id].poisonHitsThisRound || 0) + 1;
             }
           }
@@ -396,7 +427,10 @@ export async function advanceToPhase3(roomCode, room) {
             type: 'POISONED_PILL', 
             name: p.name,
             pointsLost: pointsLost,
-            killers: killers.map(k => k.name)
+            killers: killers.map(k => k.name),
+            isLeaderBounty: victimIsLeader,
+            wasTrojan: wasTrojan,
+            wasLandmine: wasLandmine
           });
           newDetailed.push({
             type: 'POISONED_PILL',
@@ -404,19 +438,20 @@ export async function advanceToPhase3(roomCode, room) {
             actor: p.name,
             actorId: p.id,
             pointsLost: pointsLost,
-            killers: killers
+            killers: killers,
+            isLeaderBounty: victimIsLeader,
+            wasTrojan: wasTrojan,
+            wasLandmine: wasLandmine
           });
         } else {
           p.alive = false;
-          // Award +2 Kill Bounty to each killer (excluding self-suicide via swap)!
-          const killers = sugars.cyanideSources || [];
-          if (killers.length > 0) {
-            p.nemesis = killers[0].name;
-          }
+          // Fatal Poisoning / Elimination
+          // Award +3 Bounty for Leader Kill, +2 for Normal Kill
+          const killBounty = victimIsLeader ? 3 : 2;
           for (const k of killers) {
             if (players[k.id] && k.id !== p.id) {
-              players[k.id].points = (players[k.id].points || 0) + 2;
-              players[k.id].pointsEarnedThisRound = (players[k.id].pointsEarnedThisRound || 0) + 2;
+              players[k.id].points = (players[k.id].points || 0) + killBounty;
+              players[k.id].pointsEarnedThisRound = (players[k.id].pointsEarnedThisRound || 0) + killBounty;
               players[k.id].killsThisRound = (players[k.id].killsThisRound || 0) + 1;
             }
           }
@@ -424,14 +459,20 @@ export async function advanceToPhase3(roomCode, room) {
           roundLogs.push({ 
             type: 'DEATH', 
             name: p.name,
-            killers: killers.map(k => k.name)
+            killers: killers.map(k => k.name),
+            isLeaderBounty: victimIsLeader,
+            wasTrojan: wasTrojan,
+            wasLandmine: wasLandmine
           });
           newDetailed.push({
             type: 'DEATH',
             round: room.round,
             actor: p.name,
             actorId: p.id,
-            killers: killers
+            killers: killers,
+            isLeaderBounty: victimIsLeader,
+            wasTrojan: wasTrojan,
+            wasLandmine: wasLandmine
           });
         }
       } else {
@@ -489,7 +530,7 @@ export async function advanceToPhase3(roomCode, room) {
   let nextStatus = 'PHASE_3';
   let winner = null;
 
-  // 1. Check points victory (5+ Points)
+  // 1. Check points victory (8+ Points)
   const pointLeaders = aliveRemaining.filter(p => p.points >= targetGoal);
   if (pointLeaders.length > 0) {
     pointLeaders.sort((a, b) => b.points - a.points);
@@ -529,28 +570,27 @@ export async function advanceToPhase3(roomCode, room) {
     players[pid].ready = false;
   }
 
-  let lastPoisonEvent = null;
+  // Multi-Death Collection Array
   const allPoisonVictims = [];
   for (const p of Object.values(players)) {
     if (p.lastDrank && (p.roundSugars?.cyanide || 0) > 0) {
       const killers = p.roundSugars?.cyanideSources || [];
       const killerName = killers.length > 0 ? killers.map(k => k.name).join(', ') : 'Gizemli Katil';
+      const isLeaderVictim = isLeader(p.id);
       allPoisonVictims.push({
         victimName: p.name,
         victimId: p.id,
         killerName: killerName,
+        killerIds: killers.map(k => k.id),
         allKillers: killers.map(k => k.name),
         isPillSaved: !!p.autoPillUsed,
         pointsLost: p.pointsLostThisRound ?? (p.autoPillUsed ? 2 : 0),
-        bountyAwarded: p.autoPillUsed ? 1 : 2
+        bountyAwarded: isLeaderVictim ? (p.autoPillUsed ? 2 : 3) : (p.autoPillUsed ? 1 : 2),
+        isLeaderBounty: isLeaderVictim,
+        wasTrojan: !!p.wasTrojanVictim,
+        wasLandmine: !!p.wasLandmineVictim
       });
     }
-  }
-  if (allPoisonVictims.length > 0) {
-    lastPoisonEvent = {
-      ...allPoisonVictims[0],
-      allVictims: allPoisonVictims
-    };
   }
 
   await DB.update(`rooms/${roomCode}`, {
@@ -559,7 +599,8 @@ export async function advanceToPhase3(roomCode, room) {
     roundLogs: roundLogs,
     detailedLogs: newDetailed,
     winner: winner,
-    lastPoisonEvent: lastPoisonEvent
+    lastPoisonEvents: allPoisonVictims,
+    lastPoisonEvent: allPoisonVictims.length > 0 ? allPoisonVictims[0] : null
   });
 
   const deaths = Object.values(players).filter(p => !p.alive && p.lastDrank && (p.roundSugars?.cyanide || 0) > 0 && !p.autoPillUsed);
@@ -614,7 +655,8 @@ export async function nextRound(roomCode) {
     players: players,
     detailedLogs: detailed,
     currentModifier: modifier,
-    lastPoisonEvent: null
+    lastPoisonEvent: null,
+    lastPoisonEvents: []
   });
 
   auditorAgent.setPhase('PHASE_1', nextRoundNum);
@@ -646,7 +688,8 @@ export async function rematch(roomCode) {
     winner: null,
     players: players,
     currentModifier: null,
-    lastPoisonEvent: null
+    lastPoisonEvent: null,
+    lastPoisonEvents: []
   });
 }
 

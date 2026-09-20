@@ -152,10 +152,21 @@ function scheduleBotPhase1(roomCode, bot, round) {
       let motive = '';
 
       if ((currentBot.cyanide || 0) > 0) {
-        if (leader && Math.random() < 0.75) {
+        const canTrojan = (currentBot.swapsLeft ?? 1) > 0 && leader && Math.random() < 0.28;
+        const canLandmineTrap = Math.random() < 0.15;
+
+        if (canTrojan) {
+          // Trojan Horse Setup: Poison own cup to swap it with leader later!
+          actionChoice = { type: 'CYANIDE', target: bot.id };
+          motive = `Truva Atı Hazırlığı: Kendi fincanına siyanür bıraktı, 2. Fazda lider ${leader.name} ile takas edecek.`;
+        } else if (canLandmineTrap) {
+          // Landmine Trap: Poison own cup and dump, hoping a greedy thief steals it!
+          actionChoice = { type: 'CYANIDE', target: bot.id };
+          motive = `Mayın Tuzağı: Kendi fincanına siyanür bıraktı, fincanı dökerek fincanını çalacak hırsızları tuzağa düşürecek.`;
+        } else if (leader && Math.random() < 0.65) {
           actionChoice = { type: 'CYANIDE', target: leader.id };
-          motive = `Lider ${leader.name} (${leader.points} Puan) hedeflendi, suikast ödülü aranıyor.`;
-        } else if (Math.random() < 0.45) {
+          motive = `Lider ${leader.name} (${leader.points} Puan) doğrudan hedeflendi, suikast ödülü aranıyor.`;
+        } else if (Math.random() < 0.40) {
           actionChoice = { type: 'CYANIDE', target: randomTarget.id };
           motive = `Şüpheli rakip ${randomTarget.name}'ın fincanına siyanür bırakıldı.`;
         } else {
@@ -206,8 +217,45 @@ function scheduleBotPhase2(roomCode, bot, round) {
 
       const totalSugars = currentBot.roundSugars?.total || 0;
       const aliveOpponents = Object.values(room.players).filter(p => p.alive && p.id !== bot.id);
-      let verdict = 'DRINK';
-      let motive = '';
+      // Check if bot poisoned its own cup in Phase 1 (Trojan / Landmine)
+      const poisonedOwnCup = currentBot.dropAction && currentBot.dropAction.target === bot.id && currentBot.dropAction.type === 'CYANIDE';
+      if (poisonedOwnCup) {
+        if ((currentBot.swapsLeft ?? 1) > 0 && aliveOpponents.length > 0) {
+          // Trojan Horse: Deliver the poison to highest scoring opponent!
+          const sortedTargets = [...aliveOpponents].sort((a, b) => (b.points || 0) - (a.points || 0));
+          const swapTarget = sortedTargets[0];
+          verdict = `SWAP:${swapTarget.id}`;
+          motive = `Truva Atı Hamlesi: Kendi fincanındaki siyanürü lider ${swapTarget.name}'a teslim etti!`;
+          const uxFeedback = getBotPhase2UxCritique(bot.name, verdict, totalSugars);
+          auditorAgent.recordBotReasoning(
+            bot.name,
+            'PHASE_2',
+            `🔄 TRUVA TAKASI ➔ ${swapTarget.name}`,
+            motive,
+            'HIGH',
+            uxFeedback.critique,
+            uxFeedback.recommendation
+          );
+          await submitVerdict(roomCode, bot.id, verdict);
+          return;
+        } else {
+          // Mayın / Korunma: Kendi fincanında zehir olduğunu biliyor, DÖKMELİ!
+          verdict = 'DUMP';
+          motive = `Mayın Tuzağı: Fincanında kendi siyanürü var, çayı dökerek güvende kalıyor (veya çalan hırsızı tuzağa çekiyor).`;
+          const uxFeedback = getBotPhase2UxCritique(bot.name, verdict, totalSugars);
+          auditorAgent.recordBotReasoning(
+            bot.name,
+            'PHASE_2',
+            `🫗 MAYIN DÖKÜŞÜ`,
+            motive,
+            'HIGH',
+            uxFeedback.critique,
+            uxFeedback.recommendation
+          );
+          await submitVerdict(roomCode, bot.id, verdict);
+          return;
+        }
+      }
 
       if ((currentBot.swapsLeft ?? 1) > 0 && totalSugars >= 2 && (currentBot.pill || 0) === 0 && aliveOpponents.length > 0) {
         if (Math.random() < 0.45) {
