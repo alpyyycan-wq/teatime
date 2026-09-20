@@ -1472,8 +1472,10 @@ function renderPhase1() {
   const readyCount = alivePlayers.filter(p => p.ready).length;
   const hasCyanide = (me.cyanide || 0) > 0;
 
-  // Ensure selectedDropTarget is valid (can be self or opponent)
-  if (!selectedDropTarget || !alivePlayers.some(p => p.id === selectedDropTarget)) {
+  // Ensure selectedDropTarget is valid (cannot be self if SWEET)
+  if (selectedDropType === 'SWEET' && selectedDropTarget === myPlayerId) {
+    selectedDropTarget = otherAlive.length > 0 ? otherAlive[0].id : null;
+  } else if (!selectedDropTarget || !alivePlayers.some(p => p.id === selectedDropTarget)) {
     selectedDropTarget = otherAlive.length > 0 ? otherAlive[0].id : myPlayerId;
   }
 
@@ -1483,14 +1485,21 @@ function renderPhase1() {
 
   // Build Target Selection Cards (3-Column Grid, including Self Cup)
   const targetCardsHtml = allSelectableTargets.map((p, idx) => {
-    const isSelected = (selectedDropTarget === p.id);
     const isSelf = (p.id === myPlayerId);
+    const isSelfSweetDisabled = isSelf && (selectedDropType === 'SWEET');
+    const isSelected = (selectedDropTarget === p.id && !isSelfSweetDisabled);
     const palette = getPlayerCupPalette(p, idx);
-    const cardTitle = isSelf ? (currentLang === 'tr' ? '⭐ KENDİ FİNCANIN' : '⭐ YOUR CUP') : (p.isBot ? `🤖 ${p.name}` : p.name);
+    const cardTitle = isSelf 
+      ? (currentLang === 'tr' ? '⭐ KENDİ FİNCANIN' : '⭐ YOUR CUP') 
+      : (p.isBot ? `🤖 ${p.name}` : p.name);
+
     return `
-      <div class="player-target-card-3col ${isSelected ? 'selected' : ''} ${isSelf ? 'self-target-card' : ''}" data-target-id="${p.id}">
+      <div class="player-target-card-3col ${isSelected ? 'selected' : ''} ${isSelf ? 'self-target-card' : ''} ${isSelfSweetDisabled ? 'disabled-self-sweet' : ''}" data-target-id="${p.id}">
         ${isSelected ? '<span class="target-check-badge">✓</span>' : ''}
-        ${isSelf ? '<span class="target-self-badge">SEN</span>' : ''}
+        ${isSelf ? (isSelfSweetDisabled 
+            ? `<span class="target-self-badge disabled" title="${currentLang === 'tr' ? 'Şeker sadece rakiplere ikram edilir' : 'Sugar must be offered to opponents'}">⛔ İKRAM ET</span>` 
+            : `<span class="target-self-badge">💣 TUZAK / BLÖF</span>`) 
+          : ''}
         <div class="target-cup-container">
           ${renderColoredTeacup(palette, (idx + 1).toString())}
         </div>
@@ -1507,16 +1516,18 @@ function renderPhase1() {
   // Contextual Action Button Text
   let confirmBtnText = '';
   if (isTargetSelf) {
-    if (selectedDropType === 'CYANIDE') {
-      confirmBtnText = currentLang === 'tr' ? '💣 KARARIMI ONAYLA: KENDİ FİNCANINA SİYANÜR KOY (Tuzak / Truva Blöfü)' : '💣 CONFIRM: POISON OWN CUP (Trap / Trojan Bluff)';
-    } else {
-      confirmBtnText = currentLang === 'tr' ? '🍬 KARARIMI ONAYLA: KENDİ ÇAYINA ŞEKER AT (+1 Puan)' : '🍬 CONFIRM: SWEETEN OWN CUP (+1 Pt Target)';
-    }
+    confirmBtnText = currentLang === 'tr' 
+      ? '💣 KARARIMI ONAYLA: KENDİ FİNCANINA SİYANÜR KOY (Tuzak / Truva Blöfü)' 
+      : '💣 CONFIRM: POISON OWN CUP (Trap / Trojan Bluff)';
   } else {
     if (selectedDropType === 'CYANIDE') {
-      confirmBtnText = currentLang === 'tr' ? `☠️ KARARIMI ONAYLA: ${targetPlayerName}'A ZEHİR AT` : `☠️ CONFIRM: POISON ${targetPlayerName}'S TEA`;
+      confirmBtnText = currentLang === 'tr' 
+        ? `☠️ KARARIMI ONAYLA: ${targetPlayerName}'A ZEHİR AT` 
+        : `☠️ CONFIRM: POISON ${targetPlayerName}'S TEA`;
     } else {
-      confirmBtnText = currentLang === 'tr' ? `🍬 KARARIMI ONAYLA: ${targetPlayerName}'A ŞEKER VER (+1 Siyanür Stoğu)` : `🍬 CONFIRM: SWEETEN ${targetPlayerName} (+1 Cyanide Reload)`;
+      confirmBtnText = currentLang === 'tr' 
+        ? `🍬 KARARIMI ONAYLA: ${targetPlayerName}'A ŞEKER İKRAM ET (+1 Siyanür Stoğu)` 
+        : `🍬 CONFIRM: OFFER SUGAR TO ${targetPlayerName} (+1 Cyanide Reload)`;
     }
   }
 
@@ -1596,6 +1607,9 @@ function renderPhase1() {
 
   document.getElementById('btnDropSweet').onclick = () => {
     selectedDropType = 'SWEET';
+    if (selectedDropTarget === myPlayerId) {
+      selectedDropTarget = otherAlive.length > 0 ? otherAlive[0].id : null;
+    }
     renderPhase1();
   };
 
@@ -1610,7 +1624,14 @@ function renderPhase1() {
   // Attach card selection clicks (3-col cards)
   document.querySelectorAll('.player-target-card-3col').forEach(card => {
     card.onclick = () => {
-      selectedDropTarget = card.getAttribute('data-target-id');
+      const tid = card.getAttribute('data-target-id');
+      if (tid === myPlayerId && selectedDropType === 'SWEET') {
+        alert(currentLang === 'tr' 
+          ? "Kendi fincanınıza tatlı şeker koyamazsınız! Şeker sadece rakiplere ikram edilebilir. Kendi fincanınıza yalnızca Siyanür (Tuzak / Truva Blöfü) koyabilirsiniz." 
+          : "You cannot sweeten your own cup! Sugar can only be offered to opponents. You may only place Cyanide in your own cup as a bluff/trap.");
+        return;
+      }
+      selectedDropTarget = tid;
       renderPhase1();
     };
   });

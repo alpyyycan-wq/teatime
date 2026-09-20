@@ -142,7 +142,10 @@ export async function startGame(roomCode) {
 // -------------------------------------------------------------------
 
 export async function submitDropAction(roomCode, playerId, actionChoice) {
-  // Target can be ANY alive player, including playerId (Self-Cyanide / Self-Sweet)
+  if (actionChoice.type === 'SWEET' && actionChoice.target === playerId) {
+    throw new Error("Kendi fincanınıza tatlı şeker koyamazsınız! Tatlı şeker bir rakibe ikram edilmelidir. Kendi fincanınıza yalnızca Siyanür (Tuzak/Truva Blöfü) koyabilirsiniz.");
+  }
+  
   await DB.update(`rooms/${roomCode}/players/${playerId}`, {
     dropAction: actionChoice,
     ready: true

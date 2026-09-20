@@ -1535,6 +1535,45 @@ body {
   transform: translateY(-2px);
 }
 
+.player-target-card-3col.self-target-card {
+  border-color: #8c6721;
+}
+
+.player-target-card-3col.disabled-self-sweet {
+  opacity: 0.45;
+  filter: grayscale(0.85);
+  cursor: not-allowed;
+  border-color: #2e1a12 !important;
+  background: #180d09 !important;
+}
+
+.player-target-card-3col.disabled-self-sweet:hover {
+  transform: none !important;
+  border-color: #2e1a12 !important;
+  background: #180d09 !important;
+}
+
+.target-self-badge {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  background: #5a2806;
+  border: 1px solid #d97706;
+  color: #fef08a;
+  font-family: var(--font-pixel-heading);
+  font-size: 0.5rem;
+  font-weight: 800;
+  padding: 1px 4px;
+  border-radius: 3px;
+  line-height: 1;
+}
+
+.target-self-badge.disabled {
+  background: #38120c;
+  border-color: #991b1b;
+  color: #fca5a5;
+}
+
 .player-target-card-3col .target-check-badge {
   position: absolute;
   top: 4px;

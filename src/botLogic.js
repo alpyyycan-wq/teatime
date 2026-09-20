@@ -215,6 +215,9 @@ function scheduleBotPhase2(roomCode, bot, round) {
       const currentBot = room.players ? room.players[bot.id] : null;
       if (!currentBot || !currentBot.alive || currentBot.ready) return;
 
+      let verdict = 'DRINK';
+      let motive = '';
+
       const totalSugars = currentBot.roundSugars?.total || 0;
       const aliveOpponents = Object.values(room.players).filter(p => p.alive && p.id !== bot.id);
       // Check if bot poisoned its own cup in Phase 1 (Trojan / Landmine)
