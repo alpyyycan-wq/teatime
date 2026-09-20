@@ -573,6 +573,74 @@ export async function advanceToPhase3(roomCode, room) {
     players[pid].ready = false;
   }
 
+  // Generate unified, crystal-clear recap data for every player
+  for (const p of Object.values(players)) {
+    let actionLabel = '☕ Çayını İçti';
+    let actionType = 'DRINK';
+    let actionShort = '☕ İÇTİ';
+
+    if (p.swappedThisRound) {
+      actionLabel = `🔄 ${p.swappedThisRound.targetName} ile Takas Etti`;
+      actionType = 'SWAP';
+      actionShort = `🔄 ${p.swappedThisRound.targetName}`;
+    } else if (p.verdict === 'DUMP') {
+      actionLabel = '🫗 Çayını Döktü';
+      actionType = 'DUMP';
+      actionShort = '🫗 DÖKTÜ';
+    }
+
+    const sugars = p.roundSugars || { sweet: 0, cyanide: 0, total: 0 };
+    let cupLabel = '☕ Boş';
+    let cupType = 'empty';
+    if (sugars.cyanide > 0) {
+      cupLabel = sugars.sweet > 0 ? `☠️ Siyanür (+${sugars.sweet}🍬)` : '☠️ Siyanür';
+      cupType = 'cyanide';
+    } else if (sugars.sweet > 0) {
+      cupLabel = `🍬 ${sugars.sweet} Şeker`;
+      cupType = 'sweet';
+    }
+
+    let outcomeLabel = `+${p.pointsEarnedThisRound || 0} Puan`;
+    let outcomeType = 'clean';
+    let outcomeBadge = `+${p.pointsEarnedThisRound || 0}`;
+
+    if (!p.alive && p.lastDrank && (p.roundSugars?.cyanide || 0) > 0) {
+      outcomeLabel = `💀 Elendi (Katil: ${p.nemesis || 'Bilinmiyor'})`;
+      outcomeType = 'dead';
+      outcomeBadge = '💀 ELENDİ';
+    } else if (p.autoPillUsed) {
+      outcomeLabel = `💊 Panzehir Kurtardı (-${p.pointsLostThisRound || 0}P)`;
+      outcomeType = 'pill';
+      outcomeBadge = `💊 -${p.pointsLostThisRound || 0}P`;
+    } else if (p.dumpedWasPoisoned) {
+      outcomeLabel = `😮‍💨 Zehirden Kurtuldu (+0P)`;
+      outcomeType = 'relief';
+      outcomeBadge = '😮‍💨 KURTULDU';
+    } else if (p.verdict === 'DUMP') {
+      outcomeLabel = `🤦 Temiz Çay Heba (+0P)`;
+      outcomeType = 'regret';
+      outcomeBadge = '🤦 HEBA (+0)';
+    } else if (!p.alive) {
+      outcomeLabel = `👁️ İzleyici`;
+      outcomeType = 'spectator';
+      outcomeBadge = '👁️ İZLEYİCİ';
+    }
+
+    p.recap = {
+      actionLabel,
+      actionShort,
+      actionType,
+      cupLabel,
+      cupType,
+      outcomeLabel,
+      outcomeType,
+      outcomeBadge,
+      pointsEarned: p.pointsEarnedThisRound || 0,
+      pointsLost: p.pointsLostThisRound || 0,
+      totalPoints: p.points || 0
+    };
+  }
+
   // Multi-Death Collection Array
   const allPoisonVictims = [];
   for (const p of Object.values(players)) {

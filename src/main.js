@@ -2287,13 +2287,95 @@ function renderPhase3() {
   }
 
   // 2. Build Live Leaderboard (Canlı Skor Tablosu - Hedef: 8 Puan)
+  const rankMedals = ['🥇', '🥈', '🥉'];
   const sortedLeaderboard = [...allPlayers].sort((a, b) => {
     if (a.alive !== b.alive) return a.alive ? -1 : 1;
     if ((b.points || 0) !== (a.points || 0)) return (b.points || 0) - (a.points || 0);
     return (b.killsThisRound || 0) - (a.killsThisRound || 0);
   });
 
-  const rankMedals = ['🥇', '🥈', '🥉'];
+  const recapRowsHtml = sortedLeaderboard.map((p, idx) => {
+    const isPlayerMe = (p.id === myPlayerId);
+    const medal = idx < 3 ? rankMedals[idx] : `#${idx + 1}`;
+    const recap = p.recap || {};
+
+    let actionText = recap.actionShort || '';
+    if (p.swappedThisRound) {
+      const cleanTarget = (p.swappedThisRound.targetName || '').replace(/^Bot\s+/, '');
+      actionText = `🔄 ${cleanTarget}`;
+    } else if (p.verdict === 'DUMP' || actionText.includes('DÖKTÜ')) {
+      actionText = '🫗 DÖKTÜ';
+    } else if (actionText.includes('İÇTİ') || !actionText) {
+      actionText = '☕ İÇTİ';
+    } else {
+      actionText = actionText.replace(/Bot\s+/g, '');
+    }
+
+    let cupText = recap.cupLabel;
+    if (!cupText) {
+      const sugars = p.roundSugars || {};
+      if (sugars.cyanide > 0) {
+        cupText = (sugars.sweet || 0) > 0 ? `☠️ Siyanür (+${sugars.sweet}🍬)` : '☠️ Siyanür';
+      } else if (sugars.sweet > 0) {
+        cupText = `🍬 ${sugars.sweet} Şeker`;
+      } else {
+        cupText = '☕ Boş';
+      }
+    } else {
+      cupText = cupText.replace(/Tatlı\s+/g, '');
+    }
+
+    let outcomeText = recap.outcomeBadge;
+    let outcomeClass = recap.outcomeType || 'clean';
+    if (!outcomeText) {
+      if (!p.alive) {
+        outcomeText = '💀 ELENDİ';
+        outcomeClass = 'dead';
+      } else if (p.autoPillUsed) {
+        outcomeText = `💊 -${p.pointsLostThisRound || 0}P`;
+        outcomeClass = 'pill';
+      } else if (p.dumpedWasPoisoned) {
+        outcomeText = '😮 KURTULDU';
+        outcomeClass = 'relief';
+      } else if (p.verdict === 'DUMP') {
+        outcomeText = '🤦 HEBA (+0)';
+        outcomeClass = 'regret';
+      } else {
+        outcomeText = `+${p.pointsEarnedThisRound || 0}P`;
+        outcomeClass = 'clean';
+      }
+    }
+
+    const cleanDisplayName = (p.name || '').replace(/^Bot\s+/, '');
+    const displayName = isPlayerMe ? `★ ${cleanDisplayName}` : cleanDisplayName;
+
+    return `
+      <div class="recap-player-row ${isPlayerMe ? 'is-me' : ''} ${!p.alive ? 'is-dead' : ''}">
+        <div class="recap-header-row">
+          <div class="recap-identity">
+            <span class="recap-medal">${medal}</span>
+            <span class="recap-pname ${isPlayerMe ? 'is-me-text' : ''}">${displayName}</span>
+            ${!p.alive ? '<span class="tag-dead">ÖLDÜ</span>' : ''}
+          </div>
+          <div class="recap-score">
+            <span class="recap-pts-total">${p.points || 0}/${targetGoal} 🍬</span>
+            <span class="recap-pts-badge ${outcomeClass}">${outcomeText}</span>
+          </div>
+        </div>
+
+        <div class="recap-actions-strip">
+          <div class="recap-strip-cell action">
+            <span class="strip-label">${currentLang === 'tr' ? 'Karar' : 'Action'}:</span>
+            <span class="strip-val">${actionText}</span>
+          </div>
+          <div class="recap-strip-cell cup">
+            <span class="strip-label">${currentLang === 'tr' ? 'Fincan' : 'Cup'}:</span>
+            <span class="strip-val ${cupText.includes('Siyanür') ? 'danger' : ''}">${cupText}</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
 
   appEl.innerHTML = `
     <div class="app-header">
@@ -2308,90 +2390,14 @@ function renderPhase3() {
     <!-- 1. Kişiye Özel Raund Sonuç Kartı -->
     ${personalCardHtml}
 
-    <!-- 2. Masadaki Diğer Kayıplar (Varsa) -->
-    ${otherCasualtiesHtml}
-
-    <!-- Panel 3: Victorian Ornate Gold Frame with 2-3-2 Table Grid & Live Results -->
-    <div class="filigree-frame result-phase-frame">
-      <div class="filigree-corner top-left">${ICONS.filigreeCorner}</div>
-      <div class="filigree-corner top-right">${ICONS.filigreeCorner}</div>
-      <div class="filigree-corner bottom-left">${ICONS.filigreeCorner}</div>
-      <div class="filigree-corner bottom-right">${ICONS.filigreeCorner}</div>
-      <div class="filigree-inner-border"></div>
-      
-      <div class="filigree-header-title">${currentLang === 'tr' ? 'MASA DURUMU' : 'PARLOR AFTERMATH'}</div>
-      
-      <!-- Upper Half: 2-3-2 Table Grid with Dynamic Outcome Badges -->
-      ${renderCupsTable232(allPlayers, true)}
-
-      <!-- Lower Half: Circular Draped Table with Shattered Porcelain Cup -->
-      <div class="shattered-cup-scene">
-        ${ICONS.shatteredCupPixel}
+    <!-- 2. BÜTÜN MASANIN KARAR VE SKOR BİLANÇOSU (Tek, Net ve Şeffaf Tablo) -->
+    <div class="recap-table-panel">
+      <div class="recap-table-title">
+        <span>📜 ${currentLang === 'tr' ? 'BU RAUNDUN BİLANÇOSU & SKORLAR' : 'ROUND RECAP & STANDINGS'}</span>
+        <span class="recap-target-tag">${currentLang === 'tr' ? 'Hedef: ' + targetGoal + ' Puan' : 'Goal: ' + targetGoal + ' Pts'}</span>
       </div>
-    </div>
-
-    <!-- 1. Bu Raund Neler Yaşandı? (Round Chronicles / Olay Günlüğü) -->
-    <div class="round-chronicles-panel">
-      <div class="chronicles-header">
-        <span class="chronicles-title">${L.roundChroniclesTitle}</span>
-        <span class="chronicles-subtitle">${L.roundChroniclesSub}</span>
-      </div>
-      <div class="chronicles-list">
-        ${roundEvents.length === 0 ? `
-          <div style="text-align:center; color:#baa4bd; font-family:var(--font-pixel-ui); font-size:0.7rem; padding:8px;">
-            ${L.noEventsRound}
-          </div>
-        ` : roundEvents.map(ev => `
-          <div class="chronicle-item">
-            <span class="c-icon">${ev.icon}</span>
-            <span class="c-text">${ev.text}</span>
-          </div>
-        `).join('')}
-      </div>
-    </div>
-
-    <!-- 2. Canlı Skor Tablosu (Leaderboard - Hedef: 8 Puan) -->
-    <div class="leaderboard-panel">
-      <div class="leaderboard-header">
-        <span class="lb-title">🏆 ${L.liveLeaderboardTitle}</span>
-        <span class="lb-target">${L.leaderboardTarget}</span>
-      </div>
-      <div class="leaderboard-list">
-        ${sortedLeaderboard.map((p, idx) => {
-          const isPlayerMe = (p.id === myPlayerId);
-          const medal = idx < 3 ? rankMedals[idx] : `#${idx + 1}`;
-          const earned = p.pointsEarnedThisRound || 0;
-          const lost = p.pointsLostThisRound ?? 0;
-          let deltaHtml = `<span class="lb-delta zero">+0</span>`;
-          if (earned > 0) {
-            deltaHtml = `<span class="lb-delta pos">+${earned}</span>`;
-          } else if (lost > 0) {
-            deltaHtml = `<span class="lb-delta neg">-${lost}</span>`;
-          }
-
-          const progressPct = Math.min(100, Math.round(((p.points || 0) / targetGoal) * 100));
-
-          return `
-            <div class="lb-row ${isPlayerMe ? 'is-me' : ''} ${!p.alive ? 'is-dead' : ''}">
-              <div class="lb-rank">${medal}</div>
-              <div class="lb-info">
-                <div class="lb-name-line">
-                  <span class="lb-name">${p.name}${isPlayerMe ? ' ★' : ''}</span>
-                  <span class="lb-status ${p.alive ? 'alive' : 'dead'}">
-                    ${p.alive ? L.aliveStatus : L.deadStatus}
-                  </span>
-                </div>
-                <div class="lb-progress-track">
-                  <div class="lb-progress-fill" style="width:${progressPct}%;"></div>
-                </div>
-              </div>
-              <div class="lb-score-box">
-                <div class="lb-score-val">${p.points || 0}/${targetGoal} 🍬</div>
-                ${deltaHtml}
-              </div>
-            </div>
-          `;
-        }).join('')}
+      <div class="recap-rows-list">
+        ${recapRowsHtml}
       </div>
     </div>
 
@@ -2675,7 +2681,6 @@ window.__cot = {
   renderPhase2,
   renderPhase3,
   renderRoundModifierScreen,
-  renderPoisonRevealScreen,
   renderCurrentScreen,
   getRoom: () => currentRoom,
   setRoom: (r) => { currentRoom = r; },

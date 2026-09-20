@@ -4681,5 +4681,217 @@ body {
   box-shadow: 0 2px 0 #0f3017 !important;
 }
 
+/* =========================================
+   PHASE 3: SIMPLIFIED ROUND RECAP & STANDINGS TABLE
+   ========================================= */
+.recap-table-panel {
+  background: #1a0f1d;
+  border: 2px solid #5a3861;
+  border-radius: 6px;
+  box-shadow: 0 4px 0 #0d060f, inset 0 0 12px rgba(0, 0, 0, 0.5);
+  padding: 12px 14px;
+  margin-top: 10px;
+  margin-bottom: 16px;
+}
 
+.recap-table-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--font-pixel-heading);
+  font-size: 0.76rem;
+  font-weight: 800;
+  color: #ffd866;
+  text-shadow: 1px 1px 0 #000;
+  padding-bottom: 8px;
+  border-bottom: 1.5px dashed #482b52;
+  margin-bottom: 10px;
+}
 
+.recap-target-tag {
+  font-family: var(--font-pixel-ui);
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: #baa4bd;
+  background: #251429;
+  padding: 2px 8px;
+  border: 1px solid #5a3861;
+  border-radius: 4px;
+}
+
+.recap-rows-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.recap-player-row {
+  background: #221226;
+  border: 1.5px solid #4a2852;
+  border-radius: 5px;
+  padding: 8px 10px;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.recap-player-row.is-me {
+  border: 2px solid #ffd700;
+  background: linear-gradient(90deg, #2c1735, #3a1a45);
+  box-shadow: 0 0 10px rgba(255, 215, 0, 0.2);
+}
+
+.recap-player-row.is-dead {
+  opacity: 0.7;
+  filter: grayscale(0.4);
+  background: #160b19;
+  border-color: #361a3d;
+}
+
+.recap-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.recap-identity {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+
+.recap-medal {
+  font-size: 0.85rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.recap-pname {
+  font-family: var(--font-pixel-heading);
+  font-size: 0.64rem;
+  font-weight: 800;
+  color: #f2e6d8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 150px;
+}
+
+.recap-pname.is-me-text {
+  color: #ffd700;
+  font-weight: 900;
+  text-shadow: 0 0 6px rgba(255, 215, 0, 0.4);
+}
+
+.tag-dead {
+  font-family: var(--font-pixel-heading);
+  font-size: 0.50rem;
+  font-weight: 800;
+  color: #ff4444;
+  background: #3d0a0a;
+  padding: 1px 3px;
+  border: 1px solid #a82020;
+  border-radius: 3px;
+  text-transform: uppercase;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.recap-score {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.recap-pts-total {
+  font-family: var(--font-pixel-heading);
+  font-size: 0.70rem;
+  font-weight: 900;
+  color: #ffd866;
+}
+
+.recap-pts-badge {
+  font-family: var(--font-pixel-ui);
+  font-size: 0.58rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.recap-pts-badge.clean {
+  background: #13361e;
+  color: #4ade80;
+  border-color: #22c55e;
+}
+
+.recap-pts-badge.dead {
+  background: #3d0a0a;
+  color: #ff5252;
+  border-color: #ef4444;
+}
+
+.recap-pts-badge.pill {
+  background: #3a1c42;
+  color: #e879f9;
+  border-color: #c084fc;
+}
+
+.recap-pts-badge.relief {
+  background: #142938;
+  color: #38bdf8;
+  border-color: #0284c7;
+}
+
+.recap-pts-badge.regret {
+  background: #2b2416;
+  color: #fbbf24;
+  border-color: #d97706;
+}
+
+.recap-actions-strip {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  background: #140917;
+  padding: 4px 6px;
+  border-radius: 4px;
+  border: 1px solid #33173a;
+}
+
+.recap-strip-cell {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.60rem;
+  white-space: nowrap;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.strip-label {
+  font-family: var(--font-pixel-ui);
+  color: #a69888;
+  font-weight: 600;
+  font-size: 0.56rem;
+  flex-shrink: 0;
+}
+
+.strip-val {
+  font-family: var(--font-pixel-heading);
+  color: #e0d3c5;
+  font-size: 0.58rem;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.strip-val.danger {
+  color: #ff5252;
+  font-weight: 800;
+}

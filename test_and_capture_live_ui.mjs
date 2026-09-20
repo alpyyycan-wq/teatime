@@ -15,6 +15,9 @@ async function main() {
   const page = await browser.newPage();
   await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 2 }); // Mobile portrait
 
+  page.on('console', msg => console.log('[Browser Console]', msg.text()));
+  page.on('pageerror', err => console.error('[Browser Error]', err));
+
   console.log('Navigating to http://localhost:3000...');
   await page.goto('http://localhost:3000', { waitUntil: 'networkidle0' });
 
@@ -44,61 +47,72 @@ async function main() {
   console.log('Captured screen_3_phase1_topnotch.png');
 
   // Submit drop action
-  const confirmDrop = await page.$('#btnDropConfirm');
-  if (confirmDrop) {
-    await confirmDrop.click();
-    await new Promise(r => setTimeout(r, 1200));
-  }
+  await page.evaluate(() => {
+    const btn = document.getElementById('btnDropConfirm');
+    if (btn) btn.click();
+  });
+  await new Promise(r => setTimeout(r, 1500));
 
-  // Host advance to Phase 2
-  const hostAdvance = await page.$('#btnHostAdvancePhase1');
-  if (hostAdvance) {
-    await hostAdvance.click();
-    await new Promise(r => setTimeout(r, 2000));
-  }
+  // Host advance to Phase 2 if not auto-advanced
+  await page.evaluate(() => {
+    const btn = document.getElementById('btnHostAdvancePhase1');
+    if (btn) btn.click();
+  });
+
+  // Wait for Phase 2
+  await page.waitForSelector('#btnVerdictDump, .decision-card', { timeout: 8000 });
+  await new Promise(r => setTimeout(r, 800));
 
   // 4. Phase 2 (The Verdict / Decision)
   await page.evaluate(() => window.scrollTo(0, 0));
-  await new Promise(r => setTimeout(r, 300));
   await page.screenshot({ path: path.join(OUT_DIR, 'screen_4_phase2_topnotch.png') });
   console.log('Captured screen_4_phase2_topnotch.png');
 
   // Select DUMP action to show active state
-  const btnDump = await page.$('#btnVerdictDump');
-  if (btnDump) {
-    await btnDump.click();
-    await new Promise(r => setTimeout(r, 500));
-    await page.screenshot({ path: path.join(OUT_DIR, 'screen_4_phase2_dump_selected.png') });
-    console.log('Captured screen_4_phase2_dump_selected.png');
-  }
+  await page.evaluate(() => {
+    const btn = document.getElementById('btnVerdictDump');
+    if (btn) btn.click();
+  });
+  await new Promise(r => setTimeout(r, 500));
+  await page.screenshot({ path: path.join(OUT_DIR, 'screen_4_phase2_dump_selected.png') });
+  console.log('Captured screen_4_phase2_dump_selected.png');
 
   // Confirm player verdict
-  const btnConfirm = await page.$('#btnConfirmVerdict');
-  if (btnConfirm) {
-    await btnConfirm.click();
-    await new Promise(r => setTimeout(r, 800));
-  }
+  await page.evaluate(() => {
+    const btn = document.getElementById('btnConfirmVerdict');
+    if (btn) btn.click();
+  });
+  await new Promise(r => setTimeout(r, 1000));
+
+  // Wait a moment for bots to finish their Phase 2 decisions
+  await new Promise(r => setTimeout(r, 2000));
 
   // Host advance to Phase 3 (Sonuç Fazı)
-  const btnHostReveal = await page.$('#btnHostRevealPhase3');
-  if (btnHostReveal) {
-    await btnHostReveal.click();
-    await new Promise(r => setTimeout(r, 1500));
-  }
+  await page.evaluate(() => {
+    const btn = document.getElementById('btnHostRevealPhase3');
+    if (btn) btn.click();
+  });
+
+  // Wait for Phase 3 recap panel
+  await page.waitForSelector('.recap-table-panel', { timeout: 8000 });
+  console.log('✅ Found .recap-table-panel!');
 
   await page.evaluate(() => window.scrollTo(0, 0));
-  await new Promise(r => setTimeout(r, 300));
+  await new Promise(r => setTimeout(r, 500));
 
   // Verify intermediate skull popup does NOT exist
   const skullPopup = await page.$('.poison-reveal-card, #poisonRevealScreen');
   console.log('Intermediate Skull Popup Exists?', !!skullPopup ? '❌ YES (ERROR)' : '✅ NO (Correctly unified!)');
 
-  // 5. Phase 3 (Unified Result Screen)
-  await page.screenshot({ path: path.join(OUT_DIR, 'screen_5_phase3_unified.png') });
-  console.log('Captured screen_5_phase3_unified.png');
+  // 5. Phase 3 (Unified Result Screen - captured as fullPage to see the whole table)
+  await page.screenshot({ path: path.join(OUT_DIR, 'screen_5_phase3_unified.png'), fullPage: false });
+  console.log('Captured screen_5_phase3_unified.png (viewport)');
+
+  await page.screenshot({ path: path.join(OUT_DIR, 'screen_5_phase3_fullpage.png'), fullPage: true });
+  console.log('Captured screen_5_phase3_fullpage.png (full page)');
 
   await browser.close();
-  console.log('✅ Capture complete!');
+  console.log('✅ All captures complete!');
 }
 
 main().catch(err => {
